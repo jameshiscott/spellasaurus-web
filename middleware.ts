@@ -47,7 +47,6 @@ export async function middleware(request: NextRequest) {
     });
 
     // Refresh the session — required for Server Components to read auth state.
-    // Do NOT add redirect logic here; handle that in route layouts.
     await supabase.auth.getUser();
   } catch (error) {
     console.error("Middleware error:", error);
@@ -55,8 +54,6 @@ export async function middleware(request: NextRequest) {
 
   return supabaseResponse;
 }
-
-export const runtime = "nodejs";
 
 export const config = {
   matcher: [

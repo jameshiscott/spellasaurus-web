@@ -50,7 +50,9 @@
       "Bash(cp /tmp/the-way-of-the-dodo/tsconfig.json c:/Git/spellasaurus-web/public/arcade/the-way-of-the-dodo/)",
       "Bash(npm info:*)",
       "Bash(npx vercel:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(find /c/Git/spellasaurus-web/node_modules/@supabase -type f \\\\\\(-name *.js -o -name *.mjs -o -name *.ts \\\\\\))",
+      "Bash(find .next -name *middleware* -o -name *edge*)"
     ]
   }
 }
