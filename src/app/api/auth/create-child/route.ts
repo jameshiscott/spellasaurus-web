@@ -8,6 +8,7 @@ const CreateChildSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
   dateOfBirth: z.string().min(1),
+  classId: z.string().uuid().optional(),
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { fullName, username, password, dateOfBirth } = parsed.data;
+    const { fullName, username, password, dateOfBirth, classId } = parsed.data;
 
     const supabase = await createClient();
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -100,6 +101,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (insertRelationError) {
       console.error('Insert parent_children error:', insertRelationError);
       return NextResponse.json({ error: 'Failed to link child to parent' }, { status: 500 });
+    }
+
+    // Optionally enrol the child in a class
+    if (classId) {
+      const { data: classData } = await serviceClient
+        .from(TABLES.CLASSES)
+        .select('school_id')
+        .eq('id', classId)
+        .single();
+
+      if (classData) {
+        await serviceClient
+          .from(TABLES.CLASS_STUDENTS)
+          .insert({
+            class_id: classId,
+            child_id: newUser.id,
+            school_id: classData.school_id,
+          });
+      }
     }
 
     return NextResponse.json({ childId: newUser.id }, { status: 201 });

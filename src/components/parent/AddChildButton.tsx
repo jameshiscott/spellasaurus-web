@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { TABLES } from "@/lib/constants";
 
 const schema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
@@ -14,9 +16,21 @@ const schema = z.object({
     .regex(/^\S+$/, "Username must not contain spaces"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
+  classId: z.string().optional(),
 });
 
 type AddChildFormValues = z.infer<typeof schema>;
+
+interface SchoolOption {
+  id: string;
+  name: string;
+}
+
+interface ClassOption {
+  id: string;
+  name: string;
+  school_year: string;
+}
 
 export function AddChildButton() {
   const [open, setOpen] = useState(false);
@@ -24,14 +38,49 @@ export function AddChildButton() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState("");
   const router = useRouter();
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<AddChildFormValues>({ resolver: zodResolver(schema) });
+
+  // Fetch schools when modal opens
+  useEffect(() => {
+    if (!open) return;
+    const supabase = createClient();
+    supabase
+      .from(TABLES.SCHOOLS)
+      .select("id, name")
+      .order("name")
+      .then(({ data }) => {
+        setSchools((data as SchoolOption[]) ?? []);
+      });
+  }, [open]);
+
+  // Fetch classes when school is selected
+  useEffect(() => {
+    if (!selectedSchoolId) {
+      setClasses([]);
+      setValue("classId", undefined);
+      return;
+    }
+    const supabase = createClient();
+    supabase
+      .from(TABLES.CLASSES)
+      .select("id, name, school_year")
+      .eq("school_id", selectedSchoolId)
+      .order("name")
+      .then(({ data }) => {
+        setClasses((data as ClassOption[]) ?? []);
+      });
+  }, [selectedSchoolId, setValue]);
 
   const handleClose = () => {
     setOpen(false);
@@ -39,6 +88,8 @@ export function AddChildButton() {
     setError(null);
     setSuccess(false);
     setShowPassword(false);
+    setSelectedSchoolId("");
+    setClasses([]);
   };
 
   const onSubmit = async (data: AddChildFormValues) => {
@@ -48,7 +99,10 @@ export function AddChildButton() {
       const res = await fetch("/api/auth/create-child", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          classId: data.classId || undefined,
+        }),
       });
       if (!res.ok) {
         const body = (await res.json()) as { error?: string };
@@ -87,7 +141,7 @@ export function AddChildButton() {
             if (e.target === e.currentTarget) handleClose();
           }}
         >
-          <div className="bg-white rounded-3xl shadow-xl p-6 w-full max-w-md">
+          <div className="bg-white rounded-3xl shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-black mb-1">Add a Child</h2>
             <p className="text-sm text-muted-foreground mb-5">
               Create a new account your child can log in with.
@@ -180,6 +234,62 @@ export function AddChildButton() {
                   />
                   {errors.dateOfBirth && (
                     <p className="text-xs text-[#D63031]">{errors.dateOfBirth.message}</p>
+                  )}
+                </div>
+
+                {/* School & Class (optional) */}
+                <div className="rounded-xl border-2 border-dashed border-border p-4 space-y-3">
+                  <p className="text-sm font-semibold text-foreground">
+                    School &amp; Class
+                    <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    If your child&apos;s school uses Spellasaurus, select it here to join their class.
+                  </p>
+
+                  <div className="space-y-1">
+                    <label htmlFor="school" className="block text-xs font-semibold text-muted-foreground">
+                      School
+                    </label>
+                    <select
+                      id="school"
+                      value={selectedSchoolId}
+                      onChange={(e) => setSelectedSchoolId(e.target.value)}
+                      className="w-full rounded-xl border-2 border-border px-4 py-2 font-semibold focus:border-[#6C5CE7] focus:outline-none text-sm"
+                    >
+                      <option value="">No school</option>
+                      {schools.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedSchoolId && classes.length > 0 && (
+                    <div className="space-y-1">
+                      <label htmlFor="classSelect" className="block text-xs font-semibold text-muted-foreground">
+                        Class
+                      </label>
+                      <select
+                        id="classSelect"
+                        {...register("classId")}
+                        className="w-full rounded-xl border-2 border-border px-4 py-2 font-semibold focus:border-[#6C5CE7] focus:outline-none text-sm"
+                      >
+                        <option value="">No class</option>
+                        {classes.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} (Year {c.school_year})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {selectedSchoolId && classes.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">
+                      No classes found for this school.
+                    </p>
                   )}
                 </div>
 

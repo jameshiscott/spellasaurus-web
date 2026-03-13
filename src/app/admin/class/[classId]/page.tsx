@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import { AssignTeacherButton } from "@/components/admin/AssignTeacherButton";
+import { EnrolStudentButton } from "@/components/admin/EnrolStudentButton";
 
 interface ClassData {
   id: string;
@@ -129,6 +130,7 @@ export default async function ClassDetailPage({
               ({typedStudents.length})
             </span>
           </h2>
+          <EnrolStudentButton classId={classId} schoolId={schoolId} />
         </div>
 
         {typedStudents.length === 0 ? (
@@ -136,7 +138,7 @@ export default async function ClassDetailPage({
             <p className="text-3xl mb-2">🎒</p>
             <p className="font-bold text-foreground">No students enrolled</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Students are enrolled via the teacher dashboard
+              Use &quot;Add Student&quot; to enrol children by their username
             </p>
           </div>
         ) : (

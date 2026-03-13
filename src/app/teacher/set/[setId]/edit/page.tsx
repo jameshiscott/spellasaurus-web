@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import AddWordForm from "@/components/teacher/AddWordForm";
 import WordCard from "@/components/teacher/WordCard";
+import { AssignSetToClassButton } from "@/components/teacher/AssignSetToClassButton";
 
 interface EditSetPageProps {
   params: Promise<{ setId: string }>;
@@ -118,11 +119,19 @@ export default async function EditSetPage({ params }: EditSetPageProps) {
               · {words.length} {words.length === 1 ? "word" : "words"}
             </p>
           </div>
-          {spellingSet.week_number != null && (
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-brand-500 text-white">
-              Week {spellingSet.week_number}
-            </span>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {spellingSet.class_id && (
+              <AssignSetToClassButton
+                setId={spellingSet.id}
+                currentClassId={spellingSet.class_id}
+              />
+            )}
+            {spellingSet.week_number != null && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-brand-500 text-white">
+                Week {spellingSet.week_number}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

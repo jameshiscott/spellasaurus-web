@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
+import { EnrolStudentButton } from "@/components/teacher/EnrolStudentButton";
 
 interface ClassPageProps {
   params: Promise<{ classId: string }>;
@@ -140,15 +141,18 @@ export default async function ClassPage({ params }: ClassPageProps) {
 
       {/* Students section */}
       <div>
-        <h2 className="text-lg font-bold text-foreground mb-4">
-          Students ({students.length})
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-foreground">
+            Students ({students.length})
+          </h2>
+          <EnrolStudentButton classId={classId} />
+        </div>
 
         {students.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
             <div className="text-4xl mb-3">🦕</div>
             <p className="text-muted-foreground">
-              No students enrolled yet — ask your school admin to add students.
+              No students enrolled yet — use &quot;Add Student&quot; to enrol children by their username.
             </p>
           </div>
         ) : (

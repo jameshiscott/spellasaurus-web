@@ -4,6 +4,7 @@ export const TABLES = {
   SCHOOLS: "schools",
   CLASSES: "classes",
   CLASS_STUDENTS: "class_students",
+  CLASS_SPELLING_SETS: "class_spelling_sets",
   PARENT_CHILDREN: "parent_children",
   SPELLING_SETS: "spelling_sets",
   SPELLING_WORDS: "spelling_words",
