@@ -13,7 +13,7 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: "Spellasaurus",
   description: "Gamified spelling practice for primary school children",
-  icons: { icon: "/favicon.ico" },
+  icons: { icon: "/icon.svg" },
 };
 
 export const viewport: Viewport = {
