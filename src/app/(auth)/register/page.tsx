@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { USER_ROLES, TABLES } from "@/lib/constants";
 
 const registerSchema = z.object({
+  accessCode: z.string().min(1, "Early access code is required"),
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -48,11 +49,23 @@ export default function RegisterPage() {
 
   const selectedRole = watch("role");
 
-  const onSubmit = async ({ fullName, email, password, role }: RegisterForm) => {
+  const onSubmit = async ({ accessCode, fullName, email, password, role }: RegisterForm) => {
     setError(null);
     setLoading(true);
 
     try {
+      // Validate early access code server-side
+      const codeRes = await fetch("/api/auth/verify-access-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: accessCode }),
+      });
+      const codeData = await codeRes.json();
+      if (!codeData.valid) {
+        setError(codeData.error ?? "Invalid early access code");
+        return;
+      }
+
       const supabase = createClient();
 
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -99,12 +112,39 @@ export default function RegisterPage() {
 
   return (
     <div className="bg-white rounded-3xl shadow-lg p-8">
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         <h1 className="text-4xl font-black text-brand-500">🦕 Spellasaurus</h1>
         <p className="text-muted-foreground mt-2">Create your account</p>
       </div>
 
+      <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 mb-6">
+        <p className="font-bold">Early Access Beta</p>
+        <p className="mt-1">
+          Spellasaurus is still in beta. Please enter your early access code to register.
+        </p>
+      </div>
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* Early access code */}
+        <div className="space-y-1">
+          <label
+            htmlFor="accessCode"
+            className="block text-sm font-semibold text-foreground"
+          >
+            Early Access Code
+          </label>
+          <input
+            id="accessCode"
+            type="text"
+            placeholder="Enter your access code"
+            className="w-full rounded-xl border-2 border-border px-4 py-3 font-semibold placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none transition-colors"
+            {...register("accessCode")}
+          />
+          {errors.accessCode && (
+            <p className="text-sm text-danger">{errors.accessCode.message}</p>
+          )}
+        </div>
+
         {/* Role selector */}
         <div className="space-y-2">
           <label className="block text-sm font-semibold text-foreground">
