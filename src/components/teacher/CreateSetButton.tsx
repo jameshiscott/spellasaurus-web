@@ -8,7 +8,7 @@ import { z } from "zod";
 import { cn } from "@/lib/utils";
 
 interface CreateSetButtonProps {
-  classId: string;
+  onCreated?: () => void;
 }
 
 const CreateSetSchema = z.object({
@@ -18,7 +18,7 @@ const CreateSetSchema = z.object({
 
 type CreateSetFormValues = z.infer<typeof CreateSetSchema>;
 
-export default function CreateSetButton({ classId }: CreateSetButtonProps) {
+export default function CreateSetButton({ onCreated }: CreateSetButtonProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -39,7 +39,6 @@ export default function CreateSetButton({ classId }: CreateSetButtonProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          classId,
           name: values.name,
           weekStart: values.weekStart,
         }),
@@ -51,9 +50,12 @@ export default function CreateSetButton({ classId }: CreateSetButtonProps) {
         return;
       }
 
+      const data = await res.json();
       reset();
       setIsOpen(false);
-      router.refresh();
+      onCreated?.();
+      // Navigate to the edit page so teacher can add words
+      router.push(`/teacher/set/${data.setId}/edit`);
     } catch {
       setServerError("Network error. Please try again.");
     }
@@ -73,7 +75,7 @@ export default function CreateSetButton({ classId }: CreateSetButtonProps) {
         onClick={() => setIsOpen(true)}
         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-500 text-white hover:bg-brand-600 transition-colors"
       >
-        <span>+</span> Create Spelling Set
+        <span>+</span> Create Spelling List
       </button>
 
       {/* Modal backdrop */}
@@ -88,7 +90,7 @@ export default function CreateSetButton({ classId }: CreateSetButtonProps) {
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-black text-foreground">
-                Create Spelling Set
+                Create Spelling List
               </h2>
               <button
                 onClick={handleClose}
@@ -107,7 +109,7 @@ export default function CreateSetButton({ classId }: CreateSetButtonProps) {
                   htmlFor="set-name"
                   className="block text-sm font-semibold text-foreground mb-1"
                 >
-                  Set name
+                  List name
                 </label>
                 <input
                   id="set-name"
@@ -146,6 +148,9 @@ export default function CreateSetButton({ classId }: CreateSetButtonProps) {
                     {errors.weekStart.message}
                   </p>
                 )}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Lists with a future date will be set to inactive by default.
+                </p>
               </div>
 
               {serverError && (
@@ -166,7 +171,7 @@ export default function CreateSetButton({ classId }: CreateSetButtonProps) {
                   disabled={isSubmitting}
                   className="flex-1 px-4 py-2 rounded-xl text-sm font-semibold bg-brand-500 text-white hover:bg-brand-600 transition-colors disabled:opacity-50"
                 >
-                  {isSubmitting ? "Creating…" : "Create Set"}
+                  {isSubmitting ? "Creating…" : "Create List"}
                 </button>
               </div>
             </form>

@@ -13,6 +13,9 @@ interface WordResult {
   userAnswer?: string;
   wasCorrect: boolean;
   timeTakenMs: number;
+  coinsEarned?: number;
+  isFasterThanAvg?: boolean;
+  isFastestEver?: boolean;
 }
 
 function isWordResultArray(value: unknown): value is WordResult[] {

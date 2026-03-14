@@ -42,8 +42,10 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const serviceClient = createServiceClient();
+
     // Verify ownership: word → spelling_set → created_by = user.id AND type = 'personal'
-    const { data: word } = await supabase
+    const { data: word } = await serviceClient
       .from(TABLES.SPELLING_WORDS)
       .select("id, spelling_sets!spelling_words_set_id_fkey(created_by, type)")
       .eq("id", wordId)
@@ -64,9 +66,6 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
         { status: 403 }
       );
     }
-
-    // Delete word using service role
-    const serviceClient = createServiceClient();
     const { error: deleteError } = await serviceClient
       .from(TABLES.SPELLING_WORDS)
       .delete()

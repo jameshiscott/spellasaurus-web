@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import Link from "next/link";
 import { AddWordToListForm } from "@/components/parent/AddWordToListForm";
@@ -20,8 +20,10 @@ export default async function EditListPage({ params }: Props) {
 
   if (!user) redirect("/login");
 
+  const serviceClient = createServiceClient();
+
   // Verify ownership
-  const { data: set } = await supabase
+  const { data: set } = await serviceClient
     .from(TABLES.SPELLING_SETS)
     .select("id, name")
     .eq("id", setId)
@@ -32,14 +34,14 @@ export default async function EditListPage({ params }: Props) {
   if (!set) redirect("/parent/lists");
 
   // All words for this set
-  const { data: words } = await supabase
+  const { data: words } = await serviceClient
     .from(TABLES.SPELLING_WORDS)
     .select("id, word, hint, sort_order")
     .eq("set_id", setId)
     .order("sort_order", { ascending: true });
 
   // Assigned children
-  const { data: assignments } = await supabase
+  const { data: assignments } = await serviceClient
     .from(TABLES.CHILD_PERSONAL_SETS)
     .select("users!child_personal_sets_child_id_fkey(id, full_name)")
     .eq("set_id", setId);
@@ -52,7 +54,7 @@ export default async function EditListPage({ params }: Props) {
       ) ?? [];
 
   // Parent's children (for assign modal)
-  const { data: childLinks } = await supabase
+  const { data: childLinks } = await serviceClient
     .from(TABLES.PARENT_CHILDREN)
     .select("users!parent_children_child_id_fkey(id, full_name)")
     .eq("parent_id", user.id);

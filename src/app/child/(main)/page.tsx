@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import Link from "next/link";
 import DinoAvatar from "@/components/dino/DinoAvatar";
@@ -41,6 +41,8 @@ export default async function ChildHomePage() {
   ) as Partial<Record<EquipmentSlot, string>>;
 
   // Fetch this week's assigned sets (class sets + personal sets)
+  const serviceClient = createServiceClient();
+
   const { data: classEnrolments } = await supabase
     .from(TABLES.CLASS_STUDENTS)
     .select("class_id")
@@ -48,17 +50,46 @@ export default async function ChildHomePage() {
 
   const classIds = classEnrolments?.map((e) => e.class_id) ?? [];
 
-  const { data: classSets } = classIds.length
-    ? await supabase
+  let classSets: Array<{ id: string; name: string; week_start: string; type: string }> = [];
+  if (classIds.length > 0) {
+    // Junction table links
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: junctionLinks } = await (serviceClient as any)
+      .from(TABLES.CLASS_SPELLING_SETS)
+      .select("set_id")
+      .in("class_id", classIds);
+
+    const junctionSetIds: string[] = (junctionLinks ?? []).map(
+      (l: { set_id: string }) => l.set_id
+    );
+
+    // Legacy sets with class_id directly on spelling_sets
+    const { data: legacySets } = await serviceClient
+      .from(TABLES.SPELLING_SETS)
+      .select("id")
+      .in("class_id", classIds)
+      .eq("type", "class")
+      .eq("is_active", true);
+
+    const legacySetIds = (legacySets ?? []).map((s) => s.id);
+
+    // Merge and dedupe
+    const allSetIds = [...new Set([...junctionSetIds, ...legacySetIds])];
+
+    if (allSetIds.length > 0) {
+      const { data: sets } = await serviceClient
         .from(TABLES.SPELLING_SETS)
         .select("id, name, week_start, type")
-        .in("class_id", classIds)
-        .eq("type", "class")
+        .in("id", allSetIds)
+        .eq("is_active", true)
         .order("week_start", { ascending: false })
-        .limit(5)
-    : { data: [] };
+        .limit(5);
 
-  const { data: personalSetLinks } = await supabase
+      classSets = (sets ?? []) as typeof classSets;
+    }
+  }
+
+  const { data: personalSetLinks } = await serviceClient
     .from(TABLES.CHILD_PERSONAL_SETS)
     .select("set_id, spelling_sets(id, name, type)")
     .eq("child_id", user!.id)

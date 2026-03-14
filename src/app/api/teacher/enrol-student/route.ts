@@ -5,7 +5,7 @@ import { TABLES, USER_ROLES } from "@/lib/constants";
 
 const bodySchema = z.object({
   classId: z.string().uuid("Invalid class ID"),
-  username: z.string().min(1, "Username is required"),
+  childId: z.string().uuid("Invalid child ID"),
 });
 
 export async function POST(request: NextRequest) {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { classId, username } = parsed.data;
+    const { classId, childId } = parsed.data;
 
     // Verify authenticated teacher
     const supabase = await createClient();
@@ -59,17 +59,17 @@ export async function POST(request: NextRequest) {
 
     const schoolId = (cls as { school_id: string }).school_id;
 
-    // Look up child by display_name (username)
-    const serviceClient = await createServiceClient();
+    // Verify the child exists and is a child role
+    const serviceClient = createServiceClient();
     const { data: child } = await serviceClient
       .from(TABLES.USERS)
-      .select("id, role, full_name")
-      .eq("display_name", username.trim())
+      .select("id, role")
+      .eq("id", childId)
       .single();
 
     if (!child) {
       return NextResponse.json(
-        { error: `No child found with username "${username}"` },
+        { error: "Child not found" },
         { status: 404 }
       );
     }
@@ -80,8 +80,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const childId = (child as { id: string }).id;
 
     // Insert into class_students
     const { error: insertError } = await serviceClient

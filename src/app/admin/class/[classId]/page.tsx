@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import { AssignTeacherButton } from "@/components/admin/AssignTeacherButton";
 import { EnrolStudentButton } from "@/components/admin/EnrolStudentButton";
@@ -55,8 +55,9 @@ export default async function ClassDetailPage({
   const schoolId = typedClass.school_id;
   const schoolName = typedClass.schools.name;
 
-  // Fetch enrolled students
-  const { data: classStudents } = await supabase
+  // Fetch enrolled students — use service client to bypass RLS for user profile joins
+  const serviceClient = createServiceClient();
+  const { data: classStudents } = await serviceClient
     .from(TABLES.CLASS_STUDENTS)
     .select("id, child_id, users!class_students_child_id_fkey(full_name, display_name)")
     .eq("class_id", classId)
@@ -130,7 +131,7 @@ export default async function ClassDetailPage({
               ({typedStudents.length})
             </span>
           </h2>
-          <EnrolStudentButton classId={classId} schoolId={schoolId} />
+          <EnrolStudentButton classId={classId} />
         </div>
 
         {typedStudents.length === 0 ? (

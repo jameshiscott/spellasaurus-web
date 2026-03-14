@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 
 interface SpellingSetWithCount {
@@ -28,17 +28,48 @@ export default async function SetsPage() {
 
   const classIds = classEnrolments?.map((e) => e.class_id) ?? [];
 
-  // 2. Get class spelling sets
-  const { data: rawClassSets } = classIds.length
-    ? await supabase
+  // 2. Get class spelling sets via junction table + legacy class_id
+  const serviceClient = createServiceClient();
+  let rawClassSets: Array<{ id: string; name: string; week_number: number | null; week_start: string | null; type: string }> = [];
+
+  if (classIds.length > 0) {
+    // Junction table links
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: junctionLinks } = await (serviceClient as any)
+      .from(TABLES.CLASS_SPELLING_SETS)
+      .select("set_id")
+      .in("class_id", classIds);
+
+    const junctionSetIds: string[] = (junctionLinks ?? []).map(
+      (l: { set_id: string }) => l.set_id
+    );
+
+    // Legacy sets with class_id directly on spelling_sets
+    const { data: legacySets } = await serviceClient
+      .from(TABLES.SPELLING_SETS)
+      .select("id")
+      .in("class_id", classIds)
+      .eq("is_active", true);
+
+    const legacySetIds = (legacySets ?? []).map((s) => s.id);
+
+    // Merge and dedupe
+    const allSetIds = [...new Set([...junctionSetIds, ...legacySetIds])];
+
+    if (allSetIds.length > 0) {
+      const { data: sets } = await serviceClient
         .from(TABLES.SPELLING_SETS)
         .select("id, name, week_number, week_start, type")
-        .in("class_id", classIds)
-        .order("week_start", { ascending: false })
-    : { data: [] };
+        .in("id", allSetIds)
+        .eq("is_active", true)
+        .order("week_start", { ascending: false });
+
+      rawClassSets = (sets ?? []) as typeof rawClassSets;
+    }
+  }
 
   // 3. Get personal sets via child_personal_sets join
-  const { data: personalSetLinks } = await supabase
+  const { data: personalSetLinks } = await serviceClient
     .from(TABLES.CHILD_PERSONAL_SETS)
     .select("spelling_sets(id, name, week_number, week_start, type)")
     .eq("child_id", user.id);
@@ -56,7 +87,7 @@ export default async function SetsPage() {
   ): Promise<SpellingSetWithCount[]> {
     return Promise.all(
       sets.map(async (set) => {
-        const { count } = await supabase
+        const { count } = await serviceClient
           .from(TABLES.SPELLING_WORDS)
           .select("id", { count: "exact", head: true })
           .eq("set_id", set.id);

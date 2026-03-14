@@ -48,8 +48,10 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const serviceClient = createServiceClient();
+
     // Verify ownership: spelling_words → spelling_sets → created_by = user.id
-    const { data: wordData } = await supabase
+    const { data: wordData } = await serviceClient
       .from(TABLES.SPELLING_WORDS)
       .select(
         `
@@ -77,8 +79,6 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     if (sortOrder !== undefined) {
       updatePayload.sort_order = sortOrder;
     }
-
-    const serviceClient = createServiceClient();
     const { error: updateError } = await serviceClient
       .from(TABLES.SPELLING_WORDS)
       .update(updatePayload)

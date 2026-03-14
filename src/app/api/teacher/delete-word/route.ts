@@ -42,8 +42,10 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const serviceClient = createServiceClient();
+
     // Verify ownership: spelling_words → spelling_sets → created_by = user.id
-    const { data: wordData } = await supabase
+    const { data: wordData } = await serviceClient
       .from(TABLES.SPELLING_WORDS)
       .select(
         `
@@ -64,8 +66,6 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     }
 
     const audioUrl = wordData.audio_url as string | null;
-
-    const serviceClient = createServiceClient();
 
     // Delete the word
     const { error: deleteError } = await serviceClient

@@ -69,7 +69,13 @@ export const DINO_TYPES = [
 export const DINO_COLORS = ["green", "blue", "purple", "orange", "pink"] as const;
 
 /** Coins awarded per correct word in a practice session. */
-export const COINS_PER_CORRECT_WORD = 10;
+export const COINS_PER_CORRECT_WORD = 1;
+
+/** Bonus coins when answer is faster than the child's average speed. */
+export const COINS_FASTER_THAN_AVG = 2;
+
+/** Bonus coins when answer is the child's fastest ever for that word. */
+export const COINS_FASTEST_EVER = 5;
 
 /** Maximum recent practice sessions to keep per child. */
 export const MAX_RECENT_SESSIONS = 10;

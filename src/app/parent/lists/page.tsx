@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import Link from "next/link";
 import { CreateListButton } from "@/components/parent/CreateListButton";
@@ -13,8 +13,10 @@ export default async function ParentListsPage() {
 
   if (!user) redirect("/login");
 
+  const serviceClient = createServiceClient();
+
   // All personal spelling sets created by this parent
-  const { data: sets } = await supabase
+  const { data: sets } = await serviceClient
     .from(TABLES.SPELLING_SETS)
     .select("id, name, created_at")
     .eq("created_by", user.id)
@@ -25,11 +27,11 @@ export default async function ParentListsPage() {
   const setsWithDetails = await Promise.all(
     (sets ?? []).map(async (s) => {
       const [{ count: wordCount }, { data: assignments }] = await Promise.all([
-        supabase
+        serviceClient
           .from(TABLES.SPELLING_WORDS)
           .select("id", { count: "exact", head: true })
           .eq("set_id", s.id),
-        supabase
+        serviceClient
           .from(TABLES.CHILD_PERSONAL_SETS)
           .select("users!child_personal_sets_child_id_fkey(id, full_name)")
           .eq("set_id", s.id),

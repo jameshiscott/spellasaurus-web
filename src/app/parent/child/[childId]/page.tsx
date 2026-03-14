@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import Link from "next/link";
 import { ResetPasswordButton } from "@/components/parent/ResetPasswordButton";
@@ -48,8 +48,10 @@ export default async function ChildDetailPage({ params }: Props) {
 
   const childClass = classEnrollment?.classes ?? null;
 
+  const serviceClient = createServiceClient();
+
   // Personal sets assigned to child
-  const { data: personalSetLinks } = await supabase
+  const { data: personalSetLinks } = await serviceClient
     .from(TABLES.CHILD_PERSONAL_SETS)
     .select("spelling_sets(id, name)")
     .eq("child_id", childId);
@@ -61,27 +63,55 @@ export default async function ChildDetailPage({ params }: Props) {
         (s): s is { id: string; name: string } => s !== null
       ) ?? [];
 
-  // Class spelling sets (recent 5)
+  // Class spelling sets (recent 5) — junction table + legacy class_id
   let classSets: Array<{ id: string; name: string; week_start: string | null; wordCount: number }> = [];
   if (childClass) {
-    const { data: sets } = await supabase
-      .from(TABLES.SPELLING_SETS)
-      .select("id, name, week_start")
-      .eq("class_id", childClass.id)
-      .order("week_start", { ascending: false })
-      .limit(5);
+    const classId = (childClass as { id: string }).id;
 
-    if (sets) {
-      const setsWithCounts = await Promise.all(
-        sets.map(async (s) => {
-          const { count } = await supabase
-            .from(TABLES.SPELLING_WORDS)
-            .select("id", { count: "exact", head: true })
-            .eq("set_id", s.id);
-          return { ...s, wordCount: count ?? 0 };
-        })
-      );
-      classSets = setsWithCounts;
+    // Junction table links
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: classSetLinks } = await (serviceClient as any)
+      .from(TABLES.CLASS_SPELLING_SETS)
+      .select("set_id")
+      .eq("class_id", classId);
+
+    const junctionSetIds: string[] = (classSetLinks ?? []).map(
+      (l: { set_id: string }) => l.set_id
+    );
+
+    // Legacy sets with class_id directly on spelling_sets
+    const { data: legacySets } = await serviceClient
+      .from(TABLES.SPELLING_SETS)
+      .select("id")
+      .eq("class_id", classId)
+      .eq("is_active", true);
+
+    const legacySetIds = (legacySets ?? []).map((s) => s.id);
+
+    // Merge and dedupe
+    const allSetIds = [...new Set([...junctionSetIds, ...legacySetIds])];
+
+    if (allSetIds.length > 0) {
+      const { data: sets } = await serviceClient
+        .from(TABLES.SPELLING_SETS)
+        .select("id, name, week_start")
+        .in("id", allSetIds)
+        .eq("is_active", true)
+        .order("week_start", { ascending: false })
+        .limit(5);
+
+      if (sets) {
+        const setsWithCounts = await Promise.all(
+          sets.map(async (s) => {
+            const { count } = await serviceClient
+              .from(TABLES.SPELLING_WORDS)
+              .select("id", { count: "exact", head: true })
+              .eq("set_id", s.id);
+            return { ...s, wordCount: count ?? 0 };
+          })
+        );
+        classSets = setsWithCounts;
+      }
     }
   }
 

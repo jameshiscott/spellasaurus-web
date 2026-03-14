@@ -140,6 +140,8 @@ export type Database = {
           week_start: string
           week_number: number
           type: 'class' | 'personal'
+          is_active: boolean
+          active_from: string | null
           created_at: string
         }
         Insert: {
@@ -150,6 +152,8 @@ export type Database = {
           week_start: string
           week_number: number
           type: 'class' | 'personal'
+          is_active?: boolean
+          active_from?: string | null
           created_at?: string
         }
         Update: {
@@ -160,6 +164,8 @@ export type Database = {
           week_start?: string
           week_number?: number
           type?: 'class' | 'personal'
+          is_active?: boolean
+          active_from?: string | null
         }
         Relationships: [
           {

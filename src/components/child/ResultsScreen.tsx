@@ -11,6 +11,9 @@ interface WordResult {
   userAnswer?: string;
   wasCorrect: boolean;
   timeTakenMs: number;
+  coinsEarned?: number;
+  isFasterThanAvg?: boolean;
+  isFastestEver?: boolean;
 }
 
 interface ResultsScreenProps {
@@ -133,7 +136,7 @@ export default function ResultsScreen({
           {/* Flying coins animation */}
           {coins_awarded > 0 && (
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              {[...Array(Math.min(coins_awarded / 10, 5))].map((_, i) => (
+              {[...Array(Math.min(Math.floor(coins_awarded), 5))].map((_, i) => (
                 <motion.span
                   key={i}
                   initial={{ opacity: 1, y: 40, x: 40 + i * 24, scale: 1 }}
@@ -169,6 +172,16 @@ export default function ResultsScreen({
                       <span className="text-xs text-muted-foreground font-semibold">
                         ({(result.timeTakenMs / 1000).toFixed(1)}s)
                       </span>
+                      {result.wasCorrect && result.isFastestEver && (
+                        <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">
+                          🏆 Fastest ever!
+                        </span>
+                      )}
+                      {result.wasCorrect && result.isFasterThanAvg && !result.isFastestEver && (
+                        <span className="inline-flex items-center gap-0.5 text-xs font-bold text-blue-700 bg-blue-100 rounded-full px-2 py-0.5">
+                          ⚡ Faster than normal
+                        </span>
+                      )}
                     </div>
                     {!result.wasCorrect && (
                       <div className="mt-0.5 space-y-0.5">
@@ -183,6 +196,11 @@ export default function ResultsScreen({
                       </div>
                     )}
                   </div>
+                  {result.wasCorrect && result.coinsEarned != null && (
+                    <span className="text-sm font-bold text-yellow-700 flex-shrink-0">
+                      +{result.coinsEarned} 🪙
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

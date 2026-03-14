@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import Link from "next/link";
+import { TeacherSetsSection } from "@/components/teacher/TeacherSetsSection";
 
 export default async function TeacherDashboardPage() {
   const supabase = await createClient();
@@ -58,6 +59,9 @@ export default async function TeacherDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Your Lists section */}
+      <TeacherSetsSection />
     </div>
   );
 }

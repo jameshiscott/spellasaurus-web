@@ -44,8 +44,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Verify teacher owns the set
-    const { data: spellingSet } = await supabase
+    const serviceClient = createServiceClient();
+
+    // Verify teacher owns the set — use service client to bypass RLS
+    const { data: spellingSet } = await serviceClient
       .from(TABLES.SPELLING_SETS)
       .select("id")
       .eq("id", setId)
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Get current max sort_order for this set
-    const { data: maxOrderData } = await supabase
+    const { data: maxOrderData } = await serviceClient
       .from(TABLES.SPELLING_WORDS)
       .select("sort_order")
       .eq("set_id", setId)
@@ -69,9 +71,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .single();
 
     const nextSortOrder = (maxOrderData?.sort_order ?? 0) + 1;
-
-    // Insert the word using service role
-    const serviceClient = createServiceClient();
     const { data: newWord, error: insertError } = await serviceClient
       .from(TABLES.SPELLING_WORDS)
       .insert({

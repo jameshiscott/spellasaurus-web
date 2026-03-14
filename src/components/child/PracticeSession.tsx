@@ -362,8 +362,10 @@ export default function PracticeSession({
               onKeyDown={handleKeyDown}
               placeholder="Type the spelling..."
               autoComplete="off"
+              autoCorrect="off"
               autoCapitalize="none"
               spellCheck={false}
+              inputMode="text"
               data-testid="spelling-input"
               className="text-2xl text-center w-full border-2 border-gray-200 rounded-2xl p-4 focus:outline-none focus:border-brand-500 transition-colors font-bold text-foreground placeholder:text-gray-300"
             />

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     const serviceClient = createServiceClient();
 
-    // Verify teacher created the set — use service client to bypass RLS
+    // Verify teacher created the set
     const { data: set } = await serviceClient
       .from(TABLES.SPELLING_SETS)
       .select("id")
@@ -59,47 +59,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify teacher owns the target class
-    const { data: cls } = await serviceClient
-      .from(TABLES.CLASSES)
-      .select("id")
-      .eq("id", classId)
-      .eq("teacher_id", user.id)
-      .single();
-
-    if (!cls) {
-      return NextResponse.json(
-        { error: "Class not found or not owned by you" },
-        { status: 404 }
-      );
-    }
-
-    // Insert into class_spelling_sets
+    // Delete from class_spelling_sets junction table
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: insertError } = await (serviceClient as any)
+    const { error: deleteError } = await (serviceClient as any)
       .from(TABLES.CLASS_SPELLING_SETS)
-      .insert({
-        class_id: classId,
-        set_id: setId,
-      });
+      .delete()
+      .eq("set_id", setId)
+      .eq("class_id", classId);
 
-    if (insertError) {
-      if (insertError.code === "23505") {
-        return NextResponse.json(
-          { error: "Set is already assigned to this class" },
-          { status: 409 }
-        );
-      }
-      console.error("assign-set-to-class insert error:", insertError);
+    if (deleteError) {
+      console.error("unassign-set-from-class delete error:", deleteError);
       return NextResponse.json(
-        { error: "Failed to assign set to class" },
+        { error: "Failed to unassign set from class" },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ success: true }, { status: 201 });
+    return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("teacher/assign-set-to-class error:", err);
+    console.error("teacher/unassign-set-from-class error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

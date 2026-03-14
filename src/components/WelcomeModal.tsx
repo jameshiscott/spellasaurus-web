@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 
-export const CURRENT_APP_VERSION = "1.0.0";
+export const CURRENT_APP_VERSION = "2026.3.14";
 
 const RELEASE_NOTES: Record<string, { title: string; features: string[]; notice?: string }> = {
-  "1.0.0": {
+  "2026.3.14": {
     title: "Welcome to Spellasaurus!",
     features: [
       "Practise your weekly spelling words with audio and hints",

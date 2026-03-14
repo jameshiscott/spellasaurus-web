@@ -43,8 +43,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const serviceClient = createServiceClient();
+
     // Verify set ownership
-    const { data: spellingSet } = await supabase
+    const { data: spellingSet } = await serviceClient
       .from(TABLES.SPELLING_SETS)
       .select("id")
       .eq("id", setId)
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Verify all childIds are owned by this parent
     if (childIds.length > 0) {
-      const { data: ownedChildren } = await supabase
+      const { data: ownedChildren } = await serviceClient
         .from(TABLES.PARENT_CHILDREN)
         .select("child_id")
         .eq("parent_id", user.id)
@@ -77,8 +79,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
       }
     }
-
-    const serviceClient = createServiceClient();
 
     // Delete all existing assignments for this set
     const { error: deleteError } = await serviceClient

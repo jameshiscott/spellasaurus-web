@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import Link from "next/link";
 import type { DinoType, DinoColor, EquipmentSlot } from "@/components/dino/dino-types";
@@ -20,7 +20,7 @@ export default async function ChildProfilePage() {
 
   const { data: stats } = await supabase
     .from(TABLES.CHILD_STATS)
-    .select("total_sessions, total_words, total_correct, weekly_coins")
+    .select("total_sessions, total_words, total_correct, weekly_coins, average_time_ms")
     .eq("child_id", user!.id)
     .single();
 
@@ -56,9 +56,26 @@ export default async function ChildProfilePage() {
       .filter(([, name]) => name !== ""),
   ) as Partial<Record<EquipmentSlot, string>>;
 
+  // Fetch total coins ever earned from practice sessions
+  const serviceClient = createServiceClient();
+  const { data: practiceData } = await serviceClient
+    .from(TABLES.PRACTICE_SESSIONS)
+    .select("coins_awarded")
+    .eq("child_id", user!.id);
+
+  const totalCoinsEver = (practiceData ?? []).reduce(
+    (sum: number, s: { coins_awarded: number | null }) => sum + (s.coins_awarded ?? 0),
+    0
+  );
+
   const accuracy =
     stats && stats.total_words > 0
       ? Math.round((stats.total_correct / stats.total_words) * 100)
+      : null;
+
+  const avgSpeed =
+    stats && stats.average_time_ms > 0
+      ? Math.round(stats.average_time_ms / 1000)
       : null;
 
   return (
@@ -131,6 +148,16 @@ export default async function ChildProfilePage() {
             emoji="🪙"
             label="Coins This Week"
             value={stats?.weekly_coins ?? 0}
+          />
+          <StatCard
+            emoji="⏱️"
+            label="Avg Speed"
+            value={avgSpeed !== null ? `${avgSpeed}s` : "—"}
+          />
+          <StatCard
+            emoji="💰"
+            label="Total Coins Earned"
+            value={totalCoinsEver}
           />
         </div>
       </div>

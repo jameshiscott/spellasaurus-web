@@ -1,6 +1,16 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { COINS_PER_CORRECT_WORD } from "./constants";
+import { COINS_PER_CORRECT_WORD, COINS_FASTER_THAN_AVG, COINS_FASTEST_EVER } from "./constants";
+
+export interface WordCoinBreakdown {
+  wordId: string;
+  correct: number;
+  speedBonus: number;
+  fastestBonus: number;
+  total: number;
+  isFasterThanAvg: boolean;
+  isFastestEver: boolean;
+}
 
 /** Tailwind class composition utility. */
 export function cn(...inputs: ClassValue[]) {
@@ -14,9 +24,56 @@ export function checkSpelling(attempt: string, correct: string): boolean {
   return trimmed.toLowerCase() === correct.trim().toLowerCase();
 }
 
-/** Coins earned for a session based on correct word count. */
+/** Coins earned for a session based on correct word count (legacy fallback). */
 export function calculateCoinsEarned(correctCount: number): number {
   return correctCount * COINS_PER_CORRECT_WORD;
+}
+
+/**
+ * Calculate per-word coin breakdown with speed bonuses.
+ * - 1 coin per correct word
+ * - 2 bonus coins if faster than child's average speed
+ * - 5 bonus coins if fastest ever answer for that word
+ */
+export function calculateWordCoins(
+  wordResults: Array<{ wordId: string; wasCorrect: boolean; timeTakenMs: number }>,
+  avgTimeMs: number,
+  fastestTimesMap: Record<string, number>,
+): { breakdown: WordCoinBreakdown[]; totalCoins: number } {
+  const breakdown: WordCoinBreakdown[] = wordResults.map((wr) => {
+    if (!wr.wasCorrect) {
+      return {
+        wordId: wr.wordId,
+        correct: 0,
+        speedBonus: 0,
+        fastestBonus: 0,
+        total: 0,
+        isFasterThanAvg: false,
+        isFastestEver: false,
+      };
+    }
+
+    const correct = COINS_PER_CORRECT_WORD;
+    const isFasterThanAvg = avgTimeMs > 0 && wr.timeTakenMs < avgTimeMs;
+    const previousFastest = fastestTimesMap[wr.wordId];
+    const isFastestEver = previousFastest === undefined || wr.timeTakenMs < previousFastest;
+
+    const speedBonus = isFasterThanAvg ? COINS_FASTER_THAN_AVG : 0;
+    const fastestBonus = isFastestEver ? COINS_FASTEST_EVER : 0;
+
+    return {
+      wordId: wr.wordId,
+      correct,
+      speedBonus,
+      fastestBonus,
+      total: correct + speedBonus + fastestBonus,
+      isFasterThanAvg,
+      isFastestEver,
+    };
+  });
+
+  const totalCoins = breakdown.reduce((sum, b) => sum + b.total, 0);
+  return { breakdown, totalCoins };
 }
 
 /** Star rating: 3 = 100%, 2 = 70–99%, 1 = <70%. */

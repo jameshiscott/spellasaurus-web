@@ -5,7 +5,6 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES, USER_ROLES } from "@/lib/constants";
 
 const CreateSetSchema = z.object({
-  classId: z.string().min(1),
   name: z.string().min(2, "Set name must be at least 2 characters"),
   weekStart: z.string().min(1, "Week start date is required"),
 });
@@ -22,7 +21,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { classId, name, weekStart } = parsed.data;
+    const { name, weekStart } = parsed.data;
 
     // Auth check
     const supabase = await createClient();
@@ -45,36 +44,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Verify teacher owns the class
-    const { data: cls } = await supabase
-      .from(TABLES.CLASSES)
-      .select("id")
-      .eq("id", classId)
-      .eq("teacher_id", user.id)
-      .single();
-
-    if (!cls) {
-      return NextResponse.json(
-        { error: "Class not found or not owned by you" },
-        { status: 404 }
-      );
-    }
-
     // Compute week number from the weekStart date
     const weekStartDate = new Date(weekStart);
     const weekNumber = getISOWeek(weekStartDate);
 
-    // Insert the spelling set using service role
+    // Auto-deactivate if week start is in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isActive = weekStartDate <= today;
+
+    // Insert the spelling set using service role — generic, no class_id
     const serviceClient = createServiceClient();
     const { data: newSet, error: insertError } = await serviceClient
       .from(TABLES.SPELLING_SETS)
       .insert({
         name,
-        class_id: classId,
+        class_id: null,
         created_by: user.id,
         week_start: weekStart,
         week_number: weekNumber,
         type: "class",
+        is_active: isActive,
       })
       .select("id")
       .single();

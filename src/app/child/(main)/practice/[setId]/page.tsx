@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import PracticeSession from "@/components/child/PracticeSession";
 
@@ -18,7 +18,9 @@ export default async function PracticePage({ params }: PageProps) {
 
   if (!user) redirect("/login");
 
-  // Verify access: check class membership or personal set assignment
+  const serviceClient = createServiceClient();
+
+  // Verify access: check class membership (junction + legacy) or personal set
   const { data: classEnrolments } = await supabase
     .from(TABLES.CLASS_STUDENTS)
     .select("class_id")
@@ -29,17 +31,30 @@ export default async function PracticePage({ params }: PageProps) {
   let hasAccess = false;
 
   if (classIds.length > 0) {
-    const { data: classSetAccess } = await supabase
-      .from(TABLES.SPELLING_SETS)
-      .select("id")
-      .eq("id", setId)
+    // Check junction table
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: junctionAccess } = await (serviceClient as any)
+      .from(TABLES.CLASS_SPELLING_SETS)
+      .select("set_id")
+      .eq("set_id", setId)
       .in("class_id", classIds)
       .limit(1);
-    if (classSetAccess && classSetAccess.length > 0) hasAccess = true;
+    if (junctionAccess && junctionAccess.length > 0) hasAccess = true;
+
+    // Check legacy class_id on spelling_sets
+    if (!hasAccess) {
+      const { data: legacyAccess } = await serviceClient
+        .from(TABLES.SPELLING_SETS)
+        .select("id")
+        .eq("id", setId)
+        .in("class_id", classIds)
+        .limit(1);
+      if (legacyAccess && legacyAccess.length > 0) hasAccess = true;
+    }
   }
 
   if (!hasAccess) {
-    const { data: personalAccess } = await supabase
+    const { data: personalAccess } = await serviceClient
       .from(TABLES.CHILD_PERSONAL_SETS)
       .select("id")
       .eq("child_id", user.id)
@@ -51,7 +66,7 @@ export default async function PracticePage({ params }: PageProps) {
   if (!hasAccess) notFound();
 
   // Get set info
-  const { data: set, error: setError } = await supabase
+  const { data: set, error: setError } = await serviceClient
     .from(TABLES.SPELLING_SETS)
     .select("id, name, week_number, week_start, type")
     .eq("id", setId)
@@ -60,7 +75,7 @@ export default async function PracticePage({ params }: PageProps) {
   if (setError || !set) notFound();
 
   // Get all words ordered by sort_order
-  const { data: words } = await supabase
+  const { data: words } = await serviceClient
     .from(TABLES.SPELLING_WORDS)
     .select(
       "id, word, hint, ai_description, ai_example_sentence, ai_sentence_with_blank, audio_url"

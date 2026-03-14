@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import { EnrolStudentButton } from "@/components/teacher/EnrolStudentButton";
 
@@ -15,26 +15,37 @@ interface ClassData {
   school_id: string | null;
 }
 
-interface StudentData {
+interface StudentStats {
   user_id: string;
   full_name: string | null;
   display_name: string | null;
-  dino_type: string | null;
-  dino_color: string | null;
+  spellingsThisWeek: number;
+  spellingsThisMonth: number;
+  spellingsThisYear: number;
+  lastPractised: string | null;
+  coinBalance: number;
+  totalCoinsEver: number;
 }
 
-const DINO_EMOJIS: Record<string, string> = {
-  trex: "🦖",
-  triceratops: "🦕",
-  stegosaurus: "🦕",
-  brachiosaurus: "🦕",
-  raptor: "🦖",
-  ankylosaurus: "🦕",
-  diplodocus: "🦕",
-  spinosaurus: "🦖",
-  pterodactyl: "🦅",
-  parasaurolophus: "🦕",
-};
+function getStartOfWeek(): Date {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? 6 : day - 1; // Monday = start of week
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+function getStartOfMonth(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+function getStartOfYear(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), 0, 1);
+}
 
 export default async function ClassPage({ params }: ClassPageProps) {
   const { classId } = await params;
@@ -56,7 +67,41 @@ export default async function ClassPage({ params }: ClassPageProps) {
 
   const classData = cls as ClassData;
 
-  const { data: classStudents } = await supabase
+  const serviceClient = createServiceClient();
+
+  // Fetch active set count for this class (junction table + legacy class_id)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: classSetLinks } = await (serviceClient as any)
+    .from(TABLES.CLASS_SPELLING_SETS)
+    .select("set_id")
+    .eq("class_id", classId);
+
+  const junctionSetIds: string[] = (classSetLinks ?? []).map(
+    (l: { set_id: string }) => l.set_id
+  );
+
+  // Legacy sets with class_id directly on spelling_sets
+  const { data: legacyClassSets } = await serviceClient
+    .from(TABLES.SPELLING_SETS)
+    .select("id")
+    .eq("class_id", classId)
+    .eq("is_active", true);
+
+  const legacySetIds = (legacyClassSets ?? []).map((s) => s.id);
+  const allClassSetIds = [...new Set([...junctionSetIds, ...legacySetIds])];
+
+  let activeSetCount = 0;
+  if (allClassSetIds.length > 0) {
+    const { data: activeSets } = await serviceClient
+      .from(TABLES.SPELLING_SETS)
+      .select("id")
+      .in("id", allClassSetIds)
+      .eq("is_active", true);
+    activeSetCount = activeSets?.length ?? 0;
+  }
+
+  // Fetch students with profile data
+  const { data: classStudents } = await serviceClient
     .from(TABLES.CLASS_STUDENTS)
     .select(
       `
@@ -64,26 +109,84 @@ export default async function ClassPage({ params }: ClassPageProps) {
       users:child_id (
         full_name,
         display_name,
-        dino_type,
-        dino_color
+        coin_balance
       )
     `
     )
     .eq("class_id", classId);
 
-  const students: StudentData[] = (classStudents ?? []).map((cs) => {
+  const childIds: string[] = (classStudents ?? []).map(
+    (cs) => cs.child_id as string
+  );
+
+  // Fetch practice sessions for all students in this class
+  let allSessions: {
+    child_id: string;
+    total_words: number;
+    completed_at: string;
+    coins_awarded: number;
+  }[] = [];
+  if (childIds.length > 0) {
+    const { data: sessions } = await serviceClient
+      .from(TABLES.PRACTICE_SESSIONS)
+      .select("child_id, total_words, completed_at, coins_awarded")
+      .in("child_id", childIds);
+    allSessions = (sessions ?? []) as typeof allSessions;
+  }
+
+  // Fetch child_stats for last_practised_at
+  let childStatsMap: Record<string, string | null> = {};
+  if (childIds.length > 0) {
+    const { data: stats } = await serviceClient
+      .from(TABLES.CHILD_STATS)
+      .select("child_id, last_practised_at")
+      .in("child_id", childIds);
+    for (const s of stats ?? []) {
+      childStatsMap[s.child_id] = s.last_practised_at;
+    }
+  }
+
+  const weekStart = getStartOfWeek().toISOString();
+  const monthStart = getStartOfMonth().toISOString();
+  const yearStart = getStartOfYear().toISOString();
+
+  const students: StudentStats[] = (classStudents ?? []).map((cs) => {
+    const childId = cs.child_id as string;
     const u = cs.users as {
       full_name: string | null;
       display_name: string | null;
-      dino_type: string | null;
-      dino_color: string | null;
+      coin_balance: number;
     } | null;
+
+    const sessions = allSessions.filter((s) => s.child_id === childId);
+
+    const spellingsThisWeek = sessions
+      .filter((s) => s.completed_at >= weekStart)
+      .reduce((sum, s) => sum + s.total_words, 0);
+
+    const spellingsThisMonth = sessions
+      .filter((s) => s.completed_at >= monthStart)
+      .reduce((sum, s) => sum + s.total_words, 0);
+
+    const spellingsThisYear = sessions
+      .filter((s) => s.completed_at >= yearStart)
+      .reduce((sum, s) => sum + s.total_words, 0);
+
+    const totalCoinsEver = sessions.reduce(
+      (sum, s) => sum + s.coins_awarded,
+      0
+    );
+
     return {
-      user_id: cs.child_id as string,
+      user_id: childId,
       full_name: u?.full_name ?? null,
       display_name: u?.display_name ?? null,
-      dino_type: u?.dino_type ?? null,
-      dino_color: u?.dino_color ?? null,
+      spellingsThisWeek,
+      spellingsThisMonth,
+      spellingsThisYear,
+      lastPractised: childStatsMap[childId] ?? null,
+      coinBalance: u?.coin_balance ?? 0,
+      totalCoinsEver,
     };
   });
 
@@ -91,7 +194,10 @@ export default async function ClassPage({ params }: ClassPageProps) {
     <div className="space-y-6">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/teacher" className="hover:text-foreground transition-colors">
+        <Link
+          href="/teacher"
+          className="hover:text-foreground transition-colors"
+        >
           My Classes
         </Link>
         <span>›</span>
@@ -102,9 +208,13 @@ export default async function ClassPage({ params }: ClassPageProps) {
       <div className="bg-white rounded-2xl p-6 shadow-sm">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-black text-foreground">{classData.name}</h1>
+            <h1 className="text-2xl font-black text-foreground">
+              {classData.name}
+            </h1>
             {classData.school_id && (
-              <p className="text-sm text-muted-foreground mt-1">School ID: {classData.school_id}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                School ID: {classData.school_id}
+              </p>
             )}
           </div>
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-brand-500 text-white">
@@ -113,7 +223,7 @@ export default async function ClassPage({ params }: ClassPageProps) {
         </div>
       </div>
 
-      {/* Action cards */}
+      {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Link
           href={`/teacher/class/${classId}/sets`}
@@ -124,7 +234,10 @@ export default async function ClassPage({ params }: ClassPageProps) {
             Spelling Sets
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage weekly spelling lists for this class
+            {activeSetCount === 0
+              ? "No active sets"
+              : `${activeSetCount} active set${activeSetCount !== 1 ? "s" : ""}`}{" "}
+            for this class
           </p>
         </Link>
 
@@ -152,34 +265,94 @@ export default async function ClassPage({ params }: ClassPageProps) {
           <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
             <div className="text-4xl mb-3">🦕</div>
             <p className="text-muted-foreground">
-              No students enrolled yet — use &quot;Add Student&quot; to enrol children by their username.
+              No students enrolled yet — use &quot;Add Student&quot; to enrol
+              children.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {students.map((student) => {
-              const dinoEmoji = student.dino_type
-                ? DINO_EMOJIS[student.dino_type] ?? "🦕"
-                : "🦕";
-              return (
-                <div
-                  key={student.user_id}
-                  className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4"
-                >
-                  <div className="text-3xl">{dinoEmoji}</div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-foreground truncate">
-                      {student.full_name ?? "Unknown Student"}
-                    </p>
-                    {student.display_name && (
-                      <p className="text-sm text-muted-foreground truncate">
-                        {student.display_name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-gray-50">
+                    <th className="text-left px-4 py-3 font-bold text-foreground">
+                      Student
+                    </th>
+                    <th className="text-right px-4 py-3 font-bold text-foreground">
+                      This Week
+                    </th>
+                    <th className="text-right px-4 py-3 font-bold text-foreground">
+                      This Month
+                    </th>
+                    <th className="text-right px-4 py-3 font-bold text-foreground">
+                      This Year
+                    </th>
+                    <th className="text-left px-4 py-3 font-bold text-foreground">
+                      Last Practised
+                    </th>
+                    <th className="text-right px-4 py-3 font-bold text-foreground">
+                      Coins
+                    </th>
+                    <th className="text-right px-4 py-3 font-bold text-foreground">
+                      Total Earned
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((student) => {
+                    let lastPractisedDisplay = "—";
+                    if (student.lastPractised) {
+                      try {
+                        const d = new Date(student.lastPractised);
+                        lastPractisedDisplay = d.toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        });
+                      } catch {
+                        lastPractisedDisplay = student.lastPractised;
+                      }
+                    }
+
+                    return (
+                      <tr
+                        key={student.user_id}
+                        className="border-b border-border last:border-b-0 hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-foreground">
+                            {student.full_name ?? "Unknown Student"}
+                          </p>
+                          {student.display_name && (
+                            <p className="text-xs text-muted-foreground">
+                              {student.display_name}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">
+                          {student.spellingsThisWeek}
+                        </td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">
+                          {student.spellingsThisMonth}
+                        </td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">
+                          {student.spellingsThisYear}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                          {lastPractisedDisplay}
+                        </td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">
+                          {student.coinBalance}
+                        </td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">
+                          {student.totalCoinsEver}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
