@@ -33,7 +33,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const teacherId = user.id;
 
-    const { data: currentUser, error: profileError } = await supabase
+    const serviceClient = createServiceClient();
+
+    const { data: currentUser, error: profileError } = await serviceClient
       .from(TABLES.USERS)
       .select('role')
       .eq('id', teacherId)
@@ -50,11 +52,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Use service client to fetch the word — bypasses RLS so this works for
-    // both teachers (whose students' RLS is complex) and parents (who can only
-    // read words assigned to their children, not words in their own personal lists).
-    // Ownership is verified manually in code immediately after.
-    const serviceClient = createServiceClient();
+    // Fetch the word with its set info (using service client to bypass RLS)
     const { data: wordRow, error: wordError } = await serviceClient
       .from(TABLES.SPELLING_WORDS)
       .select(`
@@ -65,11 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           id,
           class_id,
           type,
-          created_by,
-          classes(
-            id,
-            teacher_id
-          )
+          created_by
         )
       `)
       .eq('id', wordId)
@@ -79,12 +73,44 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Word not found' }, { status: 404 });
     }
 
+    // eslint-disable-next-line
     const spellingSet = (wordRow as any).spelling_sets;
 
-    // Teachers: must own the class; Parents: must own the personal set
+    // Teachers: must be set creator OR own a class linked via junction table or legacy class_id
+    // Parents: must be the creator of a personal set
     if (isTeacher) {
-      const owningClass = spellingSet?.classes;
-      if (!owningClass || owningClass.teacher_id !== teacherId) {
+      let hasAccess = spellingSet?.created_by === teacherId;
+
+      if (!hasAccess && spellingSet?.class_id) {
+        // Legacy: class_id directly on the set
+        const { data: legacyClass } = await serviceClient
+          .from(TABLES.CLASSES)
+          .select('teacher_id')
+          .eq('id', spellingSet.class_id)
+          .single();
+        hasAccess = legacyClass?.teacher_id === teacherId;
+      }
+
+      if (!hasAccess) {
+        // Junction table: check if the set is linked to any class the teacher owns
+        // eslint-disable-next-line
+        const { data: junctionRows } = await (serviceClient as any)
+          .from(TABLES.CLASS_SPELLING_SETS)
+          .select('class_id')
+          .eq('set_id', spellingSet.id);
+
+        if (junctionRows && junctionRows.length > 0) {
+          const classIds = junctionRows.map((r: { class_id: string }) => r.class_id);
+          const { data: teacherClasses } = await serviceClient
+            .from(TABLES.CLASSES)
+            .select('id')
+            .in('id', classIds)
+            .eq('teacher_id', teacherId);
+          hasAccess = (teacherClasses?.length ?? 0) > 0;
+        }
+      }
+
+      if (!hasAccess) {
         return NextResponse.json({ error: 'Forbidden: you do not own this word' }, { status: 403 });
       }
     } else {
