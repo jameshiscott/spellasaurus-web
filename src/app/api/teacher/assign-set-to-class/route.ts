@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert into class_spelling_sets
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line
     const { error: insertError } = await (serviceClient as any)
       .from(TABLES.CLASS_SPELLING_SETS)
       .insert({

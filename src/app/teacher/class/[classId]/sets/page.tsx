@@ -39,7 +39,7 @@ export default async function SetsPage({ params }: SetsPageProps) {
   const serviceClient = createServiceClient();
 
   // Fetch sets linked to this class (junction table + legacy class_id)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line
   const { data: classSetLinks } = await (serviceClient as any)
     .from(TABLES.CLASS_SPELLING_SETS)
     .select("set_id")

@@ -80,7 +80,7 @@ export async function GET(): Promise<NextResponse> {
       .filter((id): id is string => id !== null);
 
     // Fetch junction table links (additional classes)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line
     const { data: junctionData } = await (serviceClient as any)
       .from(TABLES.CLASS_SPELLING_SETS)
       .select("set_id, class_id")

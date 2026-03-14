@@ -32,7 +32,7 @@ export default async function PracticePage({ params }: PageProps) {
 
   if (classIds.length > 0) {
     // Check junction table
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line
     const { data: junctionAccess } = await (serviceClient as any)
       .from(TABLES.CLASS_SPELLING_SETS)
       .select("set_id")

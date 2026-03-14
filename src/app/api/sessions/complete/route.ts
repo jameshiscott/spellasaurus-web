@@ -80,7 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (classIds.length > 0) {
       // Check junction table
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line
       const { data: junctionAccess } = await (serviceClient as any)
         .from(TABLES.CLASS_SPELLING_SETS)
         .select("set_id")

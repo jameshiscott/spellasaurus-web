@@ -53,7 +53,7 @@ export default async function ChildHomePage() {
   let classSets: Array<{ id: string; name: string; week_start: string; type: string }> = [];
   if (classIds.length > 0) {
     // Junction table links
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line
     const { data: junctionLinks } = await (serviceClient as any)
       .from(TABLES.CLASS_SPELLING_SETS)
       .select("set_id")

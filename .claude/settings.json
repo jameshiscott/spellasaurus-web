@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(find /c/Git/spellasaurus-web/src/app/child -type f -name *.tsx -o -name *.ts)",
-      "Bash(find /c/Git/spellasaurus-web/src/components -type f -name *.tsx -o -name *.ts)"
+      "Bash(find /c/Git/spellasaurus-web/src/components -type f -name *.tsx -o -name *.ts)",
+      "Bash(ls c:/Git/spellasaurus-web/.eslintrc*)",
+      "Bash(ls c:/Git/spellasaurus-web/eslint.config.*)",
+      "Bash(while read:*)",
+      "Bash(do sed:*)",
+      "Bash(done)"
     ]
   }
 }

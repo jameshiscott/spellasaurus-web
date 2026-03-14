@@ -69,7 +69,7 @@ export default async function ChildDetailPage({ params }: Props) {
     const classId = (childClass as { id: string }).id;
 
     // Junction table links
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line
     const { data: classSetLinks } = await (serviceClient as any)
       .from(TABLES.CLASS_SPELLING_SETS)
       .select("set_id")

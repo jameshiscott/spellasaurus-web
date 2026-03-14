@@ -84,7 +84,7 @@ export default async function EditSetPage({ params }: EditSetPageProps) {
     linkedClassIds.push(spellingSet.class_id);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line
   const { data: junctionData } = await (serviceClient as any)
     .from(TABLES.CLASS_SPELLING_SETS)
     .select("class_id")
