@@ -7,14 +7,22 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/client";
-import { USER_ROLES, TABLES } from "@/lib/constants";
+import { USER_ROLES } from "@/lib/constants";
 
 const registerSchema = z.object({
   accessCode: z.string().min(1, "Early access code is required"),
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  role: z.enum([USER_ROLES.PARENT, USER_ROLES.TEACHER, USER_ROLES.SCHOOL_ADMIN]),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[a-z]/, "Must contain at least one lowercase letter")
+    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Must contain at least one number")
+    .regex(/[^a-zA-Z0-9]/, "Must contain at least one special character"),
+  role: z.enum([USER_ROLES.PARENT, USER_ROLES.TEACHER, USER_ROLES.SCHOOL_ADMIN], {
+    required_error: "Please select your role",
+  }),
 });
 
 type RegisterForm = z.infer<typeof registerSchema>;
@@ -35,6 +43,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const {
     register,
@@ -44,7 +53,7 @@ export default function RegisterPage() {
     formState: { errors },
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { role: USER_ROLES.PARENT },
+    defaultValues: {},
   });
 
   const selectedRole = watch("role");
@@ -68,9 +77,13 @@ export default function RegisterPage() {
 
       const supabase = createClient();
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: { role, full_name: fullName },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
       if (signUpError) {
@@ -78,37 +91,38 @@ export default function RegisterPage() {
         return;
       }
 
-      if (!data.user) {
-        setError("Failed to create account. Please try again.");
-        return;
-      }
-
-      const { error: profileError } = await supabase.from(TABLES.USERS).insert({
-        id: data.user.id,
-        role,
-        full_name: fullName,
-        email,
-        onboarding_complete: true,
-      });
-
-      if (profileError) {
-        setError("Failed to create profile. Please try again.");
-        return;
-      }
-
-      const destinations: Record<string, string> = {
-        [USER_ROLES.PARENT]: "/parent",
-        [USER_ROLES.TEACHER]: "/teacher",
-        [USER_ROLES.SCHOOL_ADMIN]: "/admin",
-      };
-      router.push(destinations[role]);
-      router.refresh();
+      setEmailSent(true);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (emailSent) {
+    return (
+      <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
+        <h1 className="text-4xl font-black text-brand-500">🦕 Spellasaurus</h1>
+        <div className="mt-6 space-y-4">
+          <div className="text-5xl">📧</div>
+          <h2 className="text-2xl font-bold text-foreground">Check your email!</h2>
+          <p className="text-muted-foreground">
+            We&apos;ve sent a confirmation link to your email address.
+            Click the link to activate your account.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Didn&apos;t receive it? Check your spam folder.
+          </p>
+          <Link
+            href="/login"
+            className="inline-block mt-4 text-brand-500 font-bold hover:underline"
+          >
+            Back to Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-3xl shadow-lg p-8">
@@ -168,9 +182,11 @@ export default function RegisterPage() {
               )
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            {ROLE_DESCRIPTIONS[selectedRole]}
-          </p>
+          {selectedRole && (
+            <p className="text-xs text-muted-foreground">
+              {ROLE_DESCRIPTIONS[selectedRole]}
+            </p>
+          )}
           {errors.role && (
             <p className="text-sm text-danger">{errors.role.message}</p>
           )}
@@ -230,7 +246,7 @@ export default function RegisterPage() {
             id="password"
             type="password"
             autoComplete="new-password"
-            placeholder="At least 8 characters"
+            placeholder="Min 8 chars, upper, lower, number, special"
             className="w-full rounded-xl border-2 border-border px-4 py-3 font-semibold placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none transition-colors"
             {...register("password")}
           />

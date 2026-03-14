@@ -61,9 +61,28 @@ export default function LoginPage() {
         .from(TABLES.USERS)
         .select("role, onboarding_complete")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (profile?.role === USER_ROLES.CHILD && !profile.onboarding_complete) {
+      // Profile missing — create it from user_metadata (set during registration)
+      if (!profile) {
+        const res = await fetch("/api/auth/ensure-profile", { method: "POST" });
+        if (!res.ok) {
+          setError("Failed to set up your profile. Please try again.");
+          return;
+        }
+        const created = await res.json();
+        const dest: Record<string, string> = {
+          [USER_ROLES.CHILD]: "/child",
+          [USER_ROLES.PARENT]: "/parent",
+          [USER_ROLES.TEACHER]: "/teacher",
+          [USER_ROLES.SCHOOL_ADMIN]: "/admin",
+        };
+        router.push(dest[created.role ?? ""] ?? "/");
+        router.refresh();
+        return;
+      }
+
+      if (profile.role === USER_ROLES.CHILD && !profile.onboarding_complete) {
         router.push("/child/onboarding");
       } else {
         const destinations: Record<string, string> = {
@@ -72,7 +91,7 @@ export default function LoginPage() {
           [USER_ROLES.TEACHER]: "/teacher",
           [USER_ROLES.SCHOOL_ADMIN]: "/admin",
         };
-        router.push(destinations[profile?.role ?? ""] ?? "/");
+        router.push(destinations[profile.role ?? ""] ?? "/");
       }
       router.refresh();
     } catch {
