@@ -221,7 +221,7 @@ const NAME_CATEGORIES: NameCategory[] = [
   },
 ];
 
-const SUGGESTION_COUNT = 4;
+const SUGGESTION_COUNT = 8;
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -343,7 +343,7 @@ function Step1({ childName, displayName, setDisplayName, onNext }: Step1Props) {
         <p className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-2">
           Pick a name
         </p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1">
           {suggestions.map((name) => {
             const isSelected = displayName === name;
             return (

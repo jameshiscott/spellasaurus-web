@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { TABLES } from "@/lib/constants";
 
 const schema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
@@ -24,6 +22,7 @@ type AddChildFormValues = z.infer<typeof schema>;
 interface SchoolOption {
   id: string;
   name: string;
+  address: string | null;
 }
 
 interface ClassOption {
@@ -40,7 +39,13 @@ export function AddChildButton() {
   const [showPassword, setShowPassword] = useState(false);
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
-  const [selectedSchoolId, setSelectedSchoolId] = useState("");
+  const [selectedSchool, setSelectedSchool] = useState<SchoolOption | null>(null);
+  const [schoolSearch, setSchoolSearch] = useState("");
+  const [schoolDropdownOpen, setSchoolDropdownOpen] = useState(false);
+  const [schoolsLoading, setSchoolsLoading] = useState(false);
+  const schoolInputRef = useRef<HTMLInputElement>(null);
+  const schoolDropdownRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
 
   const {
@@ -51,36 +56,67 @@ export function AddChildButton() {
     formState: { errors },
   } = useForm<AddChildFormValues>({ resolver: zodResolver(schema) });
 
+  // Fetch schools from API with search query
+  const fetchSchools = useCallback(async (query: string) => {
+    setSchoolsLoading(true);
+    try {
+      const res = await fetch(`/api/schools/list?q=${encodeURIComponent(query)}`);
+      if (res.ok) {
+        const body = (await res.json()) as { schools: SchoolOption[] };
+        setSchools(body.schools);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setSchoolsLoading(false);
+    }
+  }, []);
+
   // Fetch schools when modal opens
   useEffect(() => {
     if (!open) return;
-    const supabase = createClient();
-    supabase
-      .from(TABLES.SCHOOLS)
-      .select("id, name")
-      .order("name")
-      .then(({ data }) => {
-        setSchools((data as SchoolOption[]) ?? []);
-      });
-  }, [open]);
+    fetchSchools("");
+  }, [open, fetchSchools]);
+
+  // Debounced search
+  useEffect(() => {
+    if (!schoolDropdownOpen) return;
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      fetchSchools(schoolSearch);
+    }, 300);
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [schoolSearch, schoolDropdownOpen, fetchSchools]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (schoolDropdownRef.current && !schoolDropdownRef.current.contains(e.target as Node)) {
+        setSchoolDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Fetch classes when school is selected
   useEffect(() => {
-    if (!selectedSchoolId) {
+    if (!selectedSchool) {
       setClasses([]);
       setValue("classId", undefined);
       return;
     }
-    const supabase = createClient();
-    supabase
-      .from(TABLES.CLASSES)
-      .select("id, name, school_year")
-      .eq("school_id", selectedSchoolId)
-      .order("name")
-      .then(({ data }) => {
-        setClasses((data as ClassOption[]) ?? []);
+    fetch(`/api/schools/classes?schoolId=${encodeURIComponent(selectedSchool.id)}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((body: { classes: ClassOption[] }) => {
+        setClasses(body.classes);
+      })
+      .catch(() => {
+        setClasses([]);
       });
-  }, [selectedSchoolId, setValue]);
+  }, [selectedSchool, setValue]);
 
   const handleClose = () => {
     setOpen(false);
@@ -88,7 +124,9 @@ export function AddChildButton() {
     setError(null);
     setSuccess(false);
     setShowPassword(false);
-    setSelectedSchoolId("");
+    setSelectedSchool(null);
+    setSchoolSearch("");
+    setSchoolDropdownOpen(false);
     setClasses([]);
   };
 
@@ -247,26 +285,81 @@ export function AddChildButton() {
                     If your child&apos;s school uses Spellasaurus, select it here to join their class.
                   </p>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1 relative" ref={schoolDropdownRef}>
                     <label htmlFor="school" className="block text-xs font-semibold text-muted-foreground">
                       School
                     </label>
-                    <select
-                      id="school"
-                      value={selectedSchoolId}
-                      onChange={(e) => setSelectedSchoolId(e.target.value)}
-                      className="w-full rounded-xl border-2 border-border px-4 py-2 font-semibold focus:border-[#6C5CE7] focus:outline-none text-sm"
-                    >
-                      <option value="">No school</option>
-                      {schools.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <input
+                        ref={schoolInputRef}
+                        id="school"
+                        type="text"
+                        autoComplete="off"
+                        placeholder="Search for a school..."
+                        value={selectedSchool && !schoolDropdownOpen ? selectedSchool.name : schoolSearch}
+                        onChange={(e) => {
+                          setSchoolSearch(e.target.value);
+                          if (!schoolDropdownOpen) setSchoolDropdownOpen(true);
+                          if (selectedSchool) {
+                            setSelectedSchool(null);
+                            setValue("classId", undefined);
+                          }
+                        }}
+                        onFocus={() => {
+                          setSchoolDropdownOpen(true);
+                          if (selectedSchool) {
+                            setSchoolSearch(selectedSchool.name);
+                          }
+                        }}
+                        className="w-full rounded-xl border-2 border-border px-4 py-2 font-semibold focus:border-[#6C5CE7] focus:outline-none text-sm"
+                      />
+                      {selectedSchool && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSchool(null);
+                            setSchoolSearch("");
+                            setValue("classId", undefined);
+                            schoolInputRef.current?.focus();
+                          }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    {schoolDropdownOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border-2 border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {schoolsLoading ? (
+                          <div className="px-4 py-3 text-sm text-muted-foreground">Searching...</div>
+                        ) : schools.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-muted-foreground">
+                            {schoolSearch.length > 0 ? "No schools found" : "No schools available"}
+                          </div>
+                        ) : (
+                          schools.map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedSchool(s);
+                                setSchoolSearch("");
+                                setSchoolDropdownOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-2.5 hover:bg-[#F8F6FF] transition-colors text-sm"
+                            >
+                              <span className="font-semibold text-foreground block">{s.name}</span>
+                              {s.address && (
+                                <span className="text-xs text-muted-foreground block mt-0.5">{s.address}</span>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {selectedSchoolId && classes.length > 0 && (
+                  {selectedSchool && classes.length > 0 && (
                     <div className="space-y-1">
                       <label htmlFor="classSelect" className="block text-xs font-semibold text-muted-foreground">
                         Class
@@ -286,7 +379,7 @@ export function AddChildButton() {
                     </div>
                   )}
 
-                  {selectedSchoolId && classes.length === 0 && (
+                  {selectedSchool && classes.length === 0 && (
                     <p className="text-xs text-muted-foreground italic">
                       No classes found for this school.
                     </p>

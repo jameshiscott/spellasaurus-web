@@ -1,14 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const query = request.nextUrl.searchParams.get("q")?.trim() ?? "";
+
     const service = createServiceClient();
-    const { data: schools, error } = await service
+    let dbQuery = service
       .from(TABLES.SCHOOLS)
-      .select("id, name")
-      .order("name");
+      .select("id, name, address")
+      .order("name")
+      .limit(20);
+
+    if (query.length > 0) {
+      dbQuery = dbQuery.ilike("name", `%${query}%`);
+    }
+
+    const { data: schools, error } = await dbQuery;
 
     if (error) {
       console.error("schools/list fetch error:", error);

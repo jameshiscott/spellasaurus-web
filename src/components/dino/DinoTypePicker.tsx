@@ -22,7 +22,7 @@ export default function DinoTypePicker({
 }: DinoTypePickerProps) {
   return (
     <div
-      className="grid grid-cols-2 sm:grid-cols-5 gap-3 overflow-y-auto max-h-[480px] sm:max-h-none p-1"
+      className="grid grid-cols-4 gap-2 p-1"
       role="radiogroup"
       aria-label="Choose your dinosaur type"
     >
