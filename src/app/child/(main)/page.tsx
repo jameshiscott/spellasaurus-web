@@ -43,12 +43,19 @@ export default async function ChildHomePage() {
   // Fetch this week's assigned sets (class sets + personal sets)
   const serviceClient = createServiceClient();
 
-  const { data: classEnrolments } = await supabase
+  // Fetch school & class info for the greeting
+  const { data: classEnrolments } = await serviceClient
     .from(TABLES.CLASS_STUDENTS)
-    .select("class_id")
+    .select("class_id, classes(name, schools(name))")
     .eq("child_id", user!.id);
 
   const classIds = classEnrolments?.map((e) => e.class_id) ?? [];
+
+  // Extract school and class name from the first enrolment
+  // eslint-disable-next-line
+  const firstEnrolment = classEnrolments?.[0] as any;
+  const className: string | null = firstEnrolment?.classes?.name ?? null;
+  const schoolName: string | null = firstEnrolment?.classes?.schools?.name ?? null;
 
   let classSets: Array<{ id: string; name: string; week_start: string; type: string }> = [];
   if (classIds.length > 0) {
@@ -117,6 +124,11 @@ export default async function ChildHomePage() {
             <p className="text-muted-foreground font-semibold">
               Let&apos;s practise spelling!
             </p>
+            {(schoolName || className) && (
+              <p className="text-xs text-muted-foreground font-semibold mt-1">
+                {schoolName}{schoolName && className ? " — " : ""}{className}
+              </p>
+            )}
           </div>
         </div>
       </div>

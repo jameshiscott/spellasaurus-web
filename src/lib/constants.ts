@@ -20,6 +20,8 @@ export const TABLES = {
   GLOBAL_LEADERBOARD_STATS: "global_leaderboard_stats",
   ARCADE_GAMES: "arcade_games",
   ARCADE_UNLOCKS: "arcade_unlocks",
+  ARCADE_GAME_LIVES: "arcade_game_lives",
+  ARCADE_HIGH_SCORES: "arcade_high_scores",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -79,3 +81,9 @@ export const COINS_FASTEST_EVER = 5;
 
 /** Maximum recent practice sessions to keep per child. */
 export const MAX_RECENT_SESSIONS = 10;
+
+/** Cost in coins to buy one extra arcade life. */
+export const ARCADE_LIFE_COST = 10;
+
+/** Starting lives when first playing an arcade game. */
+export const ARCADE_STARTING_LIVES = 3;

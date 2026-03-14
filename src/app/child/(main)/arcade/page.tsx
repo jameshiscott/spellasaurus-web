@@ -1,7 +1,8 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { TABLES } from '@/lib/constants';
 import Link from 'next/link';
 import ArcadeLobby from '@/components/child/ArcadeLobby';
+import ArcadeLeaderboard from '@/components/child/ArcadeLeaderboard';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,21 +12,23 @@ export default async function ArcadePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const serviceClient = createServiceClient();
+
   // Fetch game catalogue
-  const { data: games } = await supabase
+  const { data: games } = await serviceClient
     .from(TABLES.ARCADE_GAMES)
     .select('id, slug, name, description, thumbnail_url, price_coins')
     .eq('is_active', true)
     .order('sort_order');
 
   // Fetch this child's unlocks
-  const { data: unlocks } = await supabase
+  const { data: unlocks } = await serviceClient
     .from(TABLES.ARCADE_UNLOCKS)
     .select('game_id')
     .eq('child_id', user!.id);
 
   // Fetch coin balance
-  const { data: profile } = await supabase
+  const { data: profile } = await serviceClient
     .from(TABLES.USERS)
     .select('coin_balance')
     .eq('id', user!.id)
@@ -59,6 +62,11 @@ export default async function ArcadePage() {
       </div>
 
       <ArcadeLobby games={gamesWithStatus} coinBalance={coinBalance} />
+
+      {/* Leaderboards for each game */}
+      {(games ?? []).map((game) => (
+        <ArcadeLeaderboard key={game.id} gameId={game.id} gameName={game.name} />
+      ))}
     </div>
   );
 }

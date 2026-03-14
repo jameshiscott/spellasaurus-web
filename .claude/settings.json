@@ -8,7 +8,14 @@
       "Bash(while read:*)",
       "Bash(do sed:*)",
       "Bash(done)",
-      "Bash(ls \"c:/Git/spellasaurus-web/src/app/\\(auth\\)/\")"
+      "Bash(ls \"c:/Git/spellasaurus-web/src/app/\\(auth\\)/\")",
+      "Bash(cat '/c/Git/spellasaurus-web/src/app/child/\\(main\\)/arcade/page.tsx')",
+      "Bash(cat '/c/Git/spellasaurus-web/src/app/child/\\(main\\)/arcade/[gameSlug]/page.tsx')",
+      "Bash(find /c/Git/spellasaurus-web -name *.html -o -name *dodo*)",
+      "Bash(cat '/c/Git/spellasaurus-web/src/app/child/\\(main\\)/page.tsx')",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Git/spellasaurus-web/**)"
     ]
   }
 }

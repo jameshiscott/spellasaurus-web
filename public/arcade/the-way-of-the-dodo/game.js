@@ -198,6 +198,24 @@ const LIVE_BONUS_SCORE = 5000;
 const TIME_MAX = 45;
 const LIVES_START = 3;
 
+// ── Parent app communication ──────────────────────────────────────────
+var parentInitialLives = null; // set by parent via postMessage
+var gameEndNotified = false;   // prevent duplicate end messages
+
+function notifyParent(msg) {
+	try { window.parent.postMessage(msg, "*"); } catch(e) {}
+}
+
+window.addEventListener("message", function(event) {
+	var data = event.data;
+	if (!data || !data.type) return;
+	if (data.type === "init_lives") {
+		parentInitialLives = data.lives;
+		// Update live game state immediately (game may have already started)
+		lives = data.lives;
+	}
+});
+
 let gameBottomText = undefined;
 let lives = undefined;
 let titleSize;
@@ -227,8 +245,10 @@ function gameInit() {
 	transitionFrames = score = level = 0;
 	gravity = -0.01;
 	gameState = GameState.PLAY;
+	gameEndNotified = false;
 
-	lives = LIVES_START;
+	// Use lives from parent app if provided, otherwise default
+	lives = (parentInitialLives !== null) ? parentInitialLives : LIVES_START;
 	titleSize = 7;
 
 	levelBuild(level);
@@ -252,6 +272,10 @@ function gameSetState(newState) {
 			musicInit(22);
 			new ConcreteBlock(vec2(levelSize.x / 2, levelSize.y * 4));
 			gameIsNewHiscore = savefileUpdateHiscore(score);
+			if (!gameEndNotified) {
+				gameEndNotified = true;
+				notifyParent({ type: "game_over", score: score, lives: 0 });
+			}
 			break;
 
 		case GameState.WON:
@@ -263,6 +287,13 @@ function gameSetState(newState) {
 			levelStartTime = time;
 
 			gameBonusSet("Lives bonus ", lives * LIVE_BONUS_SCORE, 2);
+			if (!gameEndNotified) {
+				gameEndNotified = true;
+				// Score will be updated after bonuses — send a delayed final score
+				setTimeout(function() {
+					notifyParent({ type: "game_won", score: score, lives: lives });
+				}, 3000);
+			}
 			break;
 
 		default:
@@ -301,16 +332,15 @@ function gameUpdate() {
 			cameraPos = cameraPos.lerp(player.pos, 0.05);
 			if (time - levelStartTime > 7) {
 				if (!gameBottomText) sound_exitAppear.play();
-				gameBottomText = "[Click to start new game]";
-				if (inputJumpReleased()) gameInit();
+				gameBottomText = "You Win!";
 			}
 			break;
 
 		case GameState.GAME_OVER:
 			if (time - levelStartTime > 5) {
 				if (!gameBottomText) sound_exitAppear.play();
-				gameBottomText = "[Click to start new game]";
-				if (inputJumpReleased()) gameInit();
+				// Parent app handles restart / buy lives — don't auto-restart
+				gameBottomText = "Game Over!";
 			}
 			cameraScale = min(mainCanvas.width / levelSize.x, mainCanvas.height / levelSize.y);
 			cameraPos = levelSize.scale(0.5);
@@ -1529,6 +1559,7 @@ class Player extends EngineObject {
 		this.setCollision(false, false);
 
 		lives--;
+		notifyParent({ type: "life_lost", lives: lives, score: score });
 
 		setTimeout(() => {
 			if (lives == 0) {
