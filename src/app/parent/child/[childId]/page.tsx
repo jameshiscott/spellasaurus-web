@@ -32,7 +32,7 @@ export default async function ChildDetailPage({ params }: Props) {
   const { data: child } = await supabase
     .from(TABLES.USERS)
     .select(
-      "id, full_name, display_name, coin_balance, dino_type, dino_color, onboarding_complete"
+      "id, full_name, display_name, email, coin_balance, dino_type, dino_color, onboarding_complete"
     )
     .eq("id", childId)
     .single();
@@ -135,6 +135,11 @@ export default async function ChildDetailPage({ params }: Props) {
           <h1 className="text-2xl font-black text-foreground">{child.full_name}</h1>
           {child.display_name && (
             <p className="text-muted-foreground font-semibold">@{child.display_name}</p>
+          )}
+          {child.email && (
+            <p className="text-xs text-muted-foreground">
+              Login username: <span className="font-bold text-foreground">{child.email.replace("@spellasaurus.internal", "")}</span>
+            </p>
           )}
           <div className="flex flex-wrap justify-center sm:justify-start gap-3">
             <span className="inline-flex items-center gap-1 text-sm font-bold text-yellow-700 bg-[#FDCB6E]/20 rounded-xl px-3 py-1">

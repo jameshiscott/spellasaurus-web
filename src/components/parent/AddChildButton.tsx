@@ -8,10 +8,6 @@ import { useRouter } from "next/navigation";
 
 const schema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
-  username: z
-    .string()
-    .min(3, "Username must be at least 3 characters")
-    .regex(/^\S+$/, "Username must not contain spaces"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
   classId: z.string().optional(),
@@ -36,6 +32,7 @@ export function AddChildButton() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [createdUsername, setCreatedUsername] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
@@ -123,6 +120,7 @@ export function AddChildButton() {
     reset();
     setError(null);
     setSuccess(false);
+    setCreatedUsername(null);
     setShowPassword(false);
     setSelectedSchool(null);
     setSchoolSearch("");
@@ -138,24 +136,20 @@ export function AddChildButton() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...data,
+          fullName: data.fullName,
+          password: data.password,
+          dateOfBirth: data.dateOfBirth,
           classId: data.classId || undefined,
         }),
       });
       if (!res.ok) {
         const body = (await res.json()) as { error?: string };
-        if (res.status === 409) {
-          setError("Username already taken — please choose another");
-        } else {
-          setError(body.error ?? "Failed to create child account");
-        }
+        setError(body.error ?? "Failed to create child account");
         return;
       }
+      const result = (await res.json()) as { childId: string; username: string };
+      setCreatedUsername(result.username);
       setSuccess(true);
-      setTimeout(() => {
-        handleClose();
-        router.refresh();
-      }, 1500);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -186,11 +180,32 @@ export function AddChildButton() {
             </p>
 
             {success ? (
-              <div className="text-center py-8">
-                <p className="text-4xl mb-3">🎉</p>
+              <div className="text-center py-8 space-y-4">
+                <p className="text-4xl mb-1">🎉</p>
                 <p className="font-bold text-[#00B894] text-lg">
                   Child account created!
                 </p>
+                {createdUsername && (
+                  <div className="bg-[#F8F6FF] rounded-xl px-4 py-3 text-left space-y-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      Your child&apos;s username is:
+                    </p>
+                    <p className="text-lg font-black text-[#6C5CE7]">{createdUsername}</p>
+                    <p className="text-xs text-muted-foreground">
+                      The password is the one you just set. Use these to log in on the child&apos;s device.
+                    </p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleClose();
+                    router.refresh();
+                  }}
+                  className="w-full rounded-2xl bg-[#6C5CE7] text-white font-bold py-2.5 text-sm hover:bg-[#5a4bd1] transition-colors"
+                >
+                  Done
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -208,28 +223,6 @@ export function AddChildButton() {
                   />
                   {errors.fullName && (
                     <p className="text-xs text-[#D63031]">{errors.fullName.message}</p>
-                  )}
-                </div>
-
-                {/* Username */}
-                <div className="space-y-1">
-                  <label htmlFor="username" className="block text-sm font-semibold">
-                    Username
-                  </label>
-                  <div className="flex items-center rounded-xl border-2 border-border focus-within:border-[#6C5CE7] overflow-hidden">
-                    <input
-                      id="username"
-                      type="text"
-                      placeholder="alexsmith"
-                      className="flex-1 px-4 py-2 font-semibold focus:outline-none"
-                      {...register("username")}
-                    />
-                    <span className="pr-4 text-sm text-muted-foreground font-semibold">
-                      @spellasaurus.internal
-                    </span>
-                  </div>
-                  {errors.username && (
-                    <p className="text-xs text-[#D63031]">{errors.username.message}</p>
                   )}
                 </div>
 

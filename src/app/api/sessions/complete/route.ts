@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { TABLES, USER_ROLES } from "@/lib/constants";
+import { TABLES, USER_ROLES, COINS_PERFECT_BONUS } from "@/lib/constants";
 import { calculateWordCoins } from "@/lib/utils";
 
 const WordResultSchema = z.object({
@@ -118,14 +118,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Fetch child's average time and previous fastest times per word
+    // Fetch child's average time, word streak, and previous fastest times per word
     const { data: childStats } = await serviceClient
       .from(TABLES.CHILD_STATS)
-      .select("average_time_ms")
+      .select("average_time_ms, current_word_streak, best_word_streak")
       .eq("child_id", childId)
       .single();
 
     const avgTimeMs = childStats?.average_time_ms ?? 0;
+    let currentWordStreak = childStats?.current_word_streak ?? 0;
 
     // Get fastest times for each word from previous sessions
     const wordIds = wordResults.map((wr) => wr.wordId);
@@ -148,11 +149,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Calculate per-word coin breakdown
-    const { breakdown, totalCoins: coinsEarned } = calculateWordCoins(
+    const { breakdown, totalCoins: wordCoins } = calculateWordCoins(
       wordResults,
       avgTimeMs,
       fastestTimesMap,
     );
+
+    // Add perfect score bonus if 100%
+    const isPerfect = correctCount === totalWords;
+    const perfectBonus = isPerfect ? COINS_PERFECT_BONUS : 0;
+    const coinsEarned = wordCoins + perfectBonus;
 
     // Build enriched word_results with coin breakdown
     const enrichedWordResults = wordResults.map((wr) => {
@@ -186,8 +192,37 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const result = rpcData as unknown as { sessionId: string; newBalance: number } | null;
+    const result = rpcData as unknown as { sessionId: string; newBalance: number; coinsEarned: number } | null;
     const sessionId = result?.sessionId ?? null;
+
+    // Calculate word streak: walk through results in order
+    for (const wr of wordResults) {
+      if (wr.wasCorrect) {
+        currentWordStreak++;
+      } else {
+        currentWordStreak = 0;
+      }
+    }
+    const bestWordStreak = Math.max(childStats?.best_word_streak ?? 0, currentWordStreak);
+
+    // Update word streak in child_stats
+    await serviceClient
+      .from(TABLES.CHILD_STATS)
+      .update({
+        current_word_streak: currentWordStreak,
+        best_word_streak: bestWordStreak,
+      })
+      .eq("child_id", childId);
+
+    // Fetch updated day streak info
+    const { data: updatedStats } = await serviceClient
+      .from(TABLES.CHILD_STATS)
+      .select("current_streak, best_streak")
+      .eq("child_id", childId)
+      .single();
+
+    const currentDayStreak = updatedStats?.current_streak ?? 1;
+    const bestDayStreak = updatedStats?.best_streak ?? 1;
 
     // Store enriched word_results on the created session row
     if (sessionId) {
@@ -206,7 +241,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         sessionId,
         coinsEarned,
+        perfectBonus,
         newBalance: result?.newBalance ?? null,
+        currentDayStreak,
+        bestDayStreak,
+        currentWordStreak,
+        bestWordStreak,
       },
       { status: 200 }
     );

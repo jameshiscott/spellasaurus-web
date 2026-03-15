@@ -96,6 +96,15 @@ export default async function PracticePage({ params }: PageProps) {
     show_example_sentence: true,
   };
 
+  // Fetch current word streak
+  const { data: childStats } = await serviceClient
+    .from(TABLES.CHILD_STATS)
+    .select("current_word_streak")
+    .eq("child_id", user.id)
+    .single();
+
+  const initialWordStreak = childStats?.current_word_streak ?? 0;
+
   if (!words || words.length === 0) {
     return (
       <div className="min-h-screen bg-surface flex flex-col items-center justify-center px-4 text-center">
@@ -123,6 +132,7 @@ export default async function PracticePage({ params }: PageProps) {
       childId={user.id}
       words={words}
       settings={settings}
+      initialWordStreak={initialWordStreak}
     />
   );
 }

@@ -547,6 +547,8 @@ export type Database = {
           monthly_coins: number
           current_streak: number
           best_streak: number
+          current_word_streak: number
+          best_word_streak: number
           last_practised_at: string | null
           updated_at: string
         }
@@ -561,6 +563,8 @@ export type Database = {
           monthly_coins?: number
           current_streak?: number
           best_streak?: number
+          current_word_streak?: number
+          best_word_streak?: number
           last_practised_at?: string | null
           updated_at?: string
         }
@@ -575,6 +579,8 @@ export type Database = {
           monthly_coins?: number
           current_streak?: number
           best_streak?: number
+          current_word_streak?: number
+          best_word_streak?: number
           last_practised_at?: string | null
           updated_at?: string
         }

@@ -79,6 +79,9 @@ export const COINS_FASTER_THAN_AVG = 2;
 /** Bonus coins when answer is the child's fastest ever for that word. */
 export const COINS_FASTEST_EVER = 5;
 
+/** Bonus coins for getting 100% correct in a session. */
+export const COINS_PERFECT_BONUS = 2;
+
 /** Maximum recent practice sessions to keep per child. */
 export const MAX_RECENT_SESSIONS = 10;
 

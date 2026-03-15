@@ -105,6 +105,16 @@ export default async function ChildHomePage() {
   const personalSets = personalSetLinks?.map((l) => l.spelling_sets).filter(Boolean) ?? [];
   const allSets = [...(classSets ?? []), ...personalSets];
 
+  // Fetch day streak
+  const { data: childStats } = await serviceClient
+    .from(TABLES.CHILD_STATS)
+    .select("current_streak, best_streak")
+    .eq("child_id", user!.id)
+    .single();
+
+  const currentDayStreak = childStats?.current_streak ?? 0;
+  const bestDayStreak = childStats?.best_streak ?? 0;
+
   return (
     <div className="pt-6 space-y-6">
       {/* Greeting */}
@@ -157,6 +167,22 @@ export default async function ChildHomePage() {
           </Link>
         </div>
       </div>
+
+      {/* Day streak */}
+      {currentDayStreak > 0 && (
+        <div className="bg-orange-50 rounded-2xl px-5 py-3 flex items-center gap-3">
+          <span className="text-2xl">🔥</span>
+          <div>
+            <p className="text-xs font-bold text-orange-700 uppercase tracking-wide">Day Streak</p>
+            <p className="text-2xl font-black text-orange-800">
+              {currentDayStreak} day{currentDayStreak !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <span className="ml-auto text-xs font-bold text-orange-600">
+            Best: {bestDayStreak}
+          </span>
+        </div>
+      )}
 
       {/* This week's sets */}
       <div>

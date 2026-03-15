@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { getStarRating, getScorePercent } from "@/lib/utils";
+import { COINS_PERFECT_BONUS } from "@/lib/constants";
 
 interface WordResult {
   wordId: string;
@@ -28,6 +29,8 @@ interface ResultsScreenProps {
   };
   newBalance: number;
   displayName: string;
+  currentWordStreak?: number;
+  bestWordStreak?: number;
 }
 
 function StarRating({ stars }: { stars: 1 | 2 | 3 }) {
@@ -80,10 +83,13 @@ export default function ResultsScreen({
   session,
   newBalance,
   displayName,
+  currentWordStreak = 0,
+  bestWordStreak = 0,
 }: ResultsScreenProps) {
   const { correct_count, total_words, coins_awarded, word_results } = session;
   const percent = getScorePercent(correct_count, total_words);
   const stars = getStarRating(correct_count, total_words);
+  const isPerfect = correct_count === total_words;
 
   const headline =
     percent === 100
@@ -150,6 +156,36 @@ export default function ResultsScreen({
             </div>
           )}
         </div>
+
+        {/* Perfect bonus */}
+        {isPerfect && (
+          <div className="bg-purple-50 rounded-2xl px-5 py-4 flex items-center gap-3">
+            <span className="text-3xl">🌟</span>
+            <div>
+              <p className="font-black text-purple-800 text-lg">
+                Perfect Score Bonus!
+              </p>
+              <p className="text-sm text-purple-700 font-semibold">
+                +{COINS_PERFECT_BONUS} bonus coins for getting them all right!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Word streak */}
+        {currentWordStreak > 0 && (
+          <div className="bg-orange-50 rounded-2xl px-5 py-4 flex items-center gap-3">
+            <span className="text-3xl">🔥</span>
+            <div>
+              <p className="font-black text-orange-800 text-lg">
+                {currentWordStreak} words correct in a row!
+              </p>
+              <p className="text-sm text-orange-700 font-semibold">
+                Best: {bestWordStreak} word{bestWordStreak !== 1 ? "s" : ""}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Word breakdown */}
         {word_results.length > 0 && (

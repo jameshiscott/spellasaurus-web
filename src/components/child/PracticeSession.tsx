@@ -37,6 +37,7 @@ interface PracticeSessionProps {
   childId: string;
   words: Word[];
   settings: PracticeSettings;
+  initialWordStreak?: number;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -69,6 +70,7 @@ export default function PracticeSession({
   setName,
   words,
   settings,
+  initialWordStreak = 0,
 }: PracticeSessionProps) {
   const router = useRouter();
 
@@ -79,6 +81,7 @@ export default function PracticeSession({
   const [wordResults, setWordResults] = useState<WordResult[]>([]);
   const [lastResult, setLastResult] = useState<boolean | null>(null);
   const [submitError, setSubmitError] = useState(false);
+  const [wordStreak, setWordStreak] = useState(initialWordStreak);
 
   const sessionStartTimeRef = useRef<number>(0);
   const wordStartTimeRef = useRef<number>(0);
@@ -142,6 +145,7 @@ export default function PracticeSession({
 
     setWordResults((prev) => [...prev, result]);
     setLastResult(wasCorrect);
+    setWordStreak((prev) => (wasCorrect ? prev + 1 : 0));
     setPhase("feedback");
 
     feedbackTimerRef.current = setTimeout(() => {
@@ -304,6 +308,11 @@ export default function PracticeSession({
         <span className="text-sm font-bold text-muted-foreground">
           Word {currentIndex + 1} of {totalWords}
         </span>
+        {wordStreak > 0 && (
+          <span className="text-sm font-black text-orange-500">
+            🔥 {wordStreak}
+          </span>
+        )}
         <span className="text-sm font-bold text-brand-500">
           {setName}
         </span>

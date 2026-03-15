@@ -15,7 +15,10 @@
       "Bash(cat '/c/Git/spellasaurus-web/src/app/child/\\(main\\)/page.tsx')",
       "Bash(for f:*)",
       "Bash(do echo:*)",
-      "Read(//c/Git/spellasaurus-web/**)"
+      "Read(//c/Git/spellasaurus-web/**)",
+      "Bash(find /c/Git/spellasaurus-web/src/components/dino -type f -name *.tsx -o -name *.ts)",
+      "Bash(grep -l \"complete_spelling_session\" \"c:/Git/spellasaurus-web/supabase/migrations/\"*.sql)",
+      "Bash(tasklist)"
     ]
   }
 }

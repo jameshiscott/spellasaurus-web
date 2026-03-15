@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import ResultsScreen from "@/components/child/ResultsScreen";
 
@@ -60,6 +60,14 @@ export default async function ResultsPage({ params }: PageProps) {
     .eq("id", user.id)
     .single();
 
+  // Fetch word streak from child_stats
+  const serviceClient = createServiceClient();
+  const { data: childStats } = await serviceClient
+    .from(TABLES.CHILD_STATS)
+    .select("current_word_streak, best_word_streak")
+    .eq("child_id", user.id)
+    .single();
+
   const wordResults = isWordResultArray(session.word_results)
     ? session.word_results
     : [];
@@ -77,6 +85,8 @@ export default async function ResultsPage({ params }: PageProps) {
       }}
       newBalance={profile?.coin_balance ?? 0}
       displayName={profile?.display_name ?? "there"}
+      currentWordStreak={childStats?.current_word_streak ?? 0}
+      bestWordStreak={childStats?.best_word_streak ?? 0}
     />
   );
 }

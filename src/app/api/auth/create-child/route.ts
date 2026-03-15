@@ -5,7 +5,6 @@ import { TABLES, USER_ROLES } from '@/lib/constants';
 
 const CreateChildSchema = z.object({
   fullName: z.string().min(1),
-  username: z.string().min(1),
   password: z.string().min(1),
   dateOfBirth: z.string().min(1),
   classId: z.string().uuid().optional(),
@@ -23,7 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { fullName, username, password, dateOfBirth, classId } = parsed.data;
+    const { fullName, password, dateOfBirth, classId } = parsed.data;
 
     const supabase = await createClient();
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -48,22 +47,48 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const serviceClient = await createServiceClient();
 
-    const email = `${username}@spellasaurus.internal`;
+    // Auto-generate username from full name (e.g. "Alex Hiscott" → "alexhiscott")
+    const baseUsername = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let username = baseUsername || 'child';
+    let email = `${username}@spellasaurus.internal`;
+    let suffix = 0;
 
-    const { data: authData, error: createAuthError } = await serviceClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
+    // Try to create the auth user, appending _N on conflict
+    // eslint-disable-next-line
+    let authData: any = null;
+    // eslint-disable-next-line
+    let createAuthError: any = null;
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const result = await serviceClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+
+      if (!result.error) {
+        authData = result.data;
+        createAuthError = null;
+        break;
+      }
+
+      const msg = result.error.message?.toLowerCase() ?? '';
+      if (
+        msg.includes('already registered') ||
+        msg.includes('already exists') ||
+        msg.includes('duplicate')
+      ) {
+        suffix++;
+        username = `${baseUsername}_${suffix}`;
+        email = `${username}@spellasaurus.internal`;
+        continue;
+      }
+
+      createAuthError = result.error;
+      break;
+    }
 
     if (createAuthError) {
-      if (
-        createAuthError.message?.toLowerCase().includes('already registered') ||
-        createAuthError.message?.toLowerCase().includes('already exists') ||
-        createAuthError.message?.toLowerCase().includes('duplicate')
-      ) {
-        return NextResponse.json({ error: 'Username already taken' }, { status: 409 });
-      }
       console.error('Auth user creation error:', createAuthError);
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 });
     }
@@ -122,7 +147,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    return NextResponse.json({ childId: newUser.id }, { status: 201 });
+    return NextResponse.json({ childId: newUser.id, username }, { status: 201 });
   } catch (error) {
     console.error('Unexpected error in create-child:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
