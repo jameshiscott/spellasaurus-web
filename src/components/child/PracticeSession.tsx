@@ -457,12 +457,42 @@ export default function PracticeSession({
             {/* On-screen keyboard */}
             <OnScreenKeyboard
               onKey={(key) => {
-                setAnswer((prev) => prev + key);
-                inputRef.current?.focus();
+                const input = inputRef.current;
+                if (input) {
+                  const start = input.selectionStart ?? answer.length;
+                  const end = input.selectionEnd ?? answer.length;
+                  const next = answer.slice(0, start) + key + answer.slice(end);
+                  setAnswer(next);
+                  requestAnimationFrame(() => {
+                    input.setSelectionRange(start + 1, start + 1);
+                  });
+                  input.focus();
+                } else {
+                  setAnswer((prev) => prev + key);
+                }
               }}
               onBackspace={() => {
-                setAnswer((prev) => prev.slice(0, -1));
-                inputRef.current?.focus();
+                const input = inputRef.current;
+                if (input) {
+                  const start = input.selectionStart ?? answer.length;
+                  const end = input.selectionEnd ?? answer.length;
+                  if (start === end && start > 0) {
+                    const next = answer.slice(0, start - 1) + answer.slice(end);
+                    setAnswer(next);
+                    requestAnimationFrame(() => {
+                      input.setSelectionRange(start - 1, start - 1);
+                    });
+                  } else if (start !== end) {
+                    const next = answer.slice(0, start) + answer.slice(end);
+                    setAnswer(next);
+                    requestAnimationFrame(() => {
+                      input.setSelectionRange(start, start);
+                    });
+                  }
+                  input.focus();
+                } else {
+                  setAnswer((prev) => prev.slice(0, -1));
+                }
               }}
               onSubmit={handleSubmit}
               canSubmit={answer.trim().length > 0}

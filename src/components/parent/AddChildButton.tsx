@@ -57,7 +57,10 @@ export function AddChildButton() {
     reset,
     setValue,
     formState: { errors },
-  } = useForm<AddChildFormValues>({ resolver: zodResolver(schema) });
+  } = useForm<AddChildFormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { showOnLeaderboard: true },
+  });
 
   // Fetch schools from API with search query
   const fetchSchools = useCallback(async (query: string) => {
