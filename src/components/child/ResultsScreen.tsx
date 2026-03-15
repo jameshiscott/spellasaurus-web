@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { getStarRating, getScorePercent } from "@/lib/utils";
-import { COINS_PERFECT_BONUS } from "@/lib/constants";
+import { COINS_PERFECT_BONUS, COINS_FASTEST_EVER } from "@/lib/constants";
 
 interface WordResult {
   wordId: string;
@@ -14,7 +14,6 @@ interface WordResult {
   timeTakenMs: number;
   coinsEarned?: number;
   isFasterThanAvg?: boolean;
-  isFastestEver?: boolean;
 }
 
 interface ResultsScreenProps {
@@ -31,6 +30,7 @@ interface ResultsScreenProps {
   displayName: string;
   currentWordStreak?: number;
   bestWordStreak?: number;
+  isFastestEverSet?: boolean;
 }
 
 function StarRating({ stars }: { stars: 1 | 2 | 3 }) {
@@ -85,6 +85,7 @@ export default function ResultsScreen({
   displayName,
   currentWordStreak = 0,
   bestWordStreak = 0,
+  isFastestEverSet = false,
 }: ResultsScreenProps) {
   const { correct_count, total_words, coins_awarded, word_results } = session;
   const percent = getScorePercent(correct_count, total_words);
@@ -172,6 +173,21 @@ export default function ResultsScreen({
           </div>
         )}
 
+        {/* Fastest ever set bonus */}
+        {isFastestEverSet && (
+          <div className="bg-amber-50 rounded-2xl px-5 py-4 flex items-center gap-3">
+            <span className="text-3xl">🏆</span>
+            <div>
+              <p className="font-black text-amber-800 text-lg">
+                Fastest Ever!
+              </p>
+              <p className="text-sm text-amber-700 font-semibold">
+                +{COINS_FASTEST_EVER} bonus coins — your quickest time on this set!
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Word streak */}
         {currentWordStreak > 0 && (
           <div className="bg-orange-50 rounded-2xl px-5 py-4 flex items-center gap-3">
@@ -208,14 +224,9 @@ export default function ResultsScreen({
                       <span className="text-xs text-muted-foreground font-semibold">
                         ({(result.timeTakenMs / 1000).toFixed(1)}s)
                       </span>
-                      {result.wasCorrect && result.isFastestEver && (
-                        <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">
-                          🏆 Fastest ever!
-                        </span>
-                      )}
-                      {result.wasCorrect && result.isFasterThanAvg && !result.isFastestEver && (
+                      {result.wasCorrect && result.isFasterThanAvg && (
                         <span className="inline-flex items-center gap-0.5 text-xs font-bold text-blue-700 bg-blue-100 rounded-full px-2 py-0.5">
-                          ⚡ Faster than normal
+                          ⚡ Faster than normal +2
                         </span>
                       )}
                     </div>

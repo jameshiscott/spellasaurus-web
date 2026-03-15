@@ -6,8 +6,8 @@ import { TABLES, USER_ROLES } from '@/lib/constants';
 const CreateChildSchema = z.object({
   fullName: z.string().min(1),
   password: z.string().min(1),
-  dateOfBirth: z.string().min(1),
   classId: z.string().uuid().optional(),
+  showOnLeaderboard: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { fullName, password, dateOfBirth, classId } = parsed.data;
+    const { fullName, password, classId, showOnLeaderboard } = parsed.data;
 
     const supabase = await createClient();
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -105,8 +105,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         role: USER_ROLES.CHILD,
         full_name: fullName,
         email,
-        date_of_birth: dateOfBirth,
         onboarding_complete: false,
+        show_on_leaderboard: showOnLeaderboard ?? false,
       });
 
     if (insertUserError) {

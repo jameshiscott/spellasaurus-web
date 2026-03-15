@@ -15,7 +15,6 @@ interface WordResult {
   timeTakenMs: number;
   coinsEarned?: number;
   isFasterThanAvg?: boolean;
-  isFastestEver?: boolean;
 }
 
 function isWordResultArray(value: unknown): value is WordResult[] {
@@ -60,13 +59,26 @@ export default async function ResultsPage({ params }: PageProps) {
     .eq("id", user.id)
     .single();
 
-  // Fetch word streak from child_stats
   const serviceClient = createServiceClient();
+
+  // Fetch word streak from child_stats
   const { data: childStats } = await serviceClient
     .from(TABLES.CHILD_STATS)
     .select("current_word_streak, best_word_streak")
     .eq("child_id", user.id)
     .single();
+
+  // Check if this session is the fastest ever for the set
+  const { data: fastestSession } = await serviceClient
+    .from(TABLES.PRACTICE_SESSIONS)
+    .select("id, time_taken_ms")
+    .eq("child_id", user.id)
+    .eq("set_id", session.set_id)
+    .order("time_taken_ms", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const isFastestEverSet = fastestSession?.id === session.id;
 
   const wordResults = isWordResultArray(session.word_results)
     ? session.word_results
@@ -87,6 +99,7 @@ export default async function ResultsPage({ params }: PageProps) {
       displayName={profile?.display_name ?? "there"}
       currentWordStreak={childStats?.current_word_streak ?? 0}
       bestWordStreak={childStats?.best_word_streak ?? 0}
+      isFastestEverSet={isFastestEverSet}
     />
   );
 }

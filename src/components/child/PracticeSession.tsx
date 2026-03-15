@@ -49,6 +49,62 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+const KEYBOARD_ROWS = [
+  ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+  ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
+  ["z", "x", "c", "v", "b", "n", "m"],
+];
+
+function OnScreenKeyboard({
+  onKey,
+  onBackspace,
+  onSubmit,
+  canSubmit,
+}: {
+  onKey: (key: string) => void;
+  onBackspace: () => void;
+  onSubmit: () => void;
+  canSubmit: boolean;
+}) {
+  return (
+    <div className="w-full mt-3 select-none">
+      {KEYBOARD_ROWS.map((row, ri) => (
+        <div key={ri} className="flex justify-center gap-[3px] mb-[3px]">
+          {ri === 2 && (
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={!canSubmit}
+              className="flex items-center justify-center bg-brand-500 disabled:opacity-40 text-white font-bold text-xs rounded-lg px-2 py-3 min-w-[2.5rem] active:scale-95 transition-transform"
+            >
+              ✓
+            </button>
+          )}
+          {row.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onKey(key)}
+              className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-foreground font-bold text-base rounded-lg min-w-[2rem] py-3 px-1 flex-1 max-w-[2.5rem] transition-colors active:scale-95"
+            >
+              {key}
+            </button>
+          ))}
+          {ri === 2 && (
+            <button
+              type="button"
+              onClick={onBackspace}
+              className="flex items-center justify-center bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-foreground font-bold text-sm rounded-lg px-2 py-3 min-w-[2.5rem] active:scale-95 transition-transform"
+            >
+              ⌫
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SentenceWithBlank({ sentence }: { sentence: string }) {
   const parts = sentence.split("___");
   return (
@@ -100,7 +156,7 @@ export default function PracticeSession({
     }
   }, [phase, currentIndex]);
 
-  // Audio auto-play when word changes during "playing" phase
+  // Audio auto-play when word changes during "playing" phase — play twice on first appearance
   useEffect(() => {
     if (phase !== "playing" || !currentWord?.audio_url || !settings.play_tts_audio) return;
     if (audioRef.current) {
@@ -109,6 +165,17 @@ export default function PracticeSession({
     const audio = new Audio(currentWord.audio_url);
     audioRef.current = audio;
     audio.play().catch(() => {});
+    // Play a second time after the first finishes
+    const handleEnded = () => {
+      audio.removeEventListener("ended", handleEnded);
+      const audio2 = new Audio(currentWord.audio_url!);
+      audioRef.current = audio2;
+      audio2.play().catch(() => {});
+    };
+    audio.addEventListener("ended", handleEnded);
+    return () => {
+      audio.removeEventListener("ended", handleEnded);
+    };
   }, [phase, currentIndex, currentWord?.audio_url, settings.play_tts_audio]);
 
   // Cleanup feedback timer on unmount
@@ -148,17 +215,25 @@ export default function PracticeSession({
     setWordStreak((prev) => (wasCorrect ? prev + 1 : 0));
     setPhase("feedback");
 
-    feedbackTimerRef.current = setTimeout(() => {
-      const nextIndex = currentIndex + 1;
-      if (nextIndex < totalWords) {
-        setCurrentIndex(nextIndex);
-        setAnswer("");
-        setLastResult(null);
-        setPhase("playing");
-      } else {
-        setPhase("submitting");
-      }
-    }, 1500);
+    if (wasCorrect) {
+      // Auto-advance after short delay for correct answers
+      feedbackTimerRef.current = setTimeout(() => {
+        advanceToNext();
+      }, 1500);
+    }
+    // Wrong answers wait for "Okay" button press
+  }
+
+  function advanceToNext() {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < totalWords) {
+      setCurrentIndex(nextIndex);
+      setAnswer("");
+      setLastResult(null);
+      setPhase("playing");
+    } else {
+      setPhase("submitting");
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -323,20 +398,6 @@ export default function PracticeSession({
         <div className="w-full relative">
           {/* Word card */}
           <div className="bg-white rounded-3xl shadow-sm p-6 w-full">
-            {/* Audio button */}
-            {currentWord?.audio_url && (
-              <div className="flex justify-center mb-4">
-                <button
-                  onClick={replayAudio}
-                  aria-label="Replay audio"
-                  className="flex items-center gap-2 bg-brand-50 hover:bg-brand-100 text-brand-500 font-bold px-5 py-2 rounded-2xl transition-colors active:scale-95"
-                >
-                  <span className="text-xl">🔊</span>
-                  <span className="text-sm">Play word</span>
-                </button>
-              </div>
-            )}
-
             {/* Description */}
             {settings.show_description && currentWord?.ai_description && (
               <div className="bg-surface rounded-2xl px-4 py-3 mb-4">
@@ -362,7 +423,21 @@ export default function PracticeSession({
               </p>
             )}
 
-            {/* Input */}
+            {/* Audio button — below examples */}
+            {currentWord?.audio_url && (
+              <div className="flex justify-center mb-4">
+                <button
+                  onClick={replayAudio}
+                  aria-label="Replay audio"
+                  className="flex items-center gap-2 bg-brand-50 hover:bg-brand-100 text-brand-500 font-bold px-5 py-2 rounded-2xl transition-colors active:scale-95"
+                >
+                  <span className="text-xl">🔊</span>
+                  <span className="text-sm">Play word</span>
+                </button>
+              </div>
+            )}
+
+            {/* Input — inputMode="none" prevents native mobile keyboard */}
             <input
               ref={inputRef}
               type="text"
@@ -374,20 +449,24 @@ export default function PracticeSession({
               autoCorrect="off"
               autoCapitalize="none"
               spellCheck={false}
-              inputMode="text"
+              inputMode="none"
               data-testid="spelling-input"
               className="text-2xl text-center w-full border-2 border-gray-200 rounded-2xl p-4 focus:outline-none focus:border-brand-500 transition-colors font-bold text-foreground placeholder:text-gray-300"
             />
 
-            {/* Submit button */}
-            <button
-              onClick={handleSubmit}
-              disabled={answer.trim().length === 0}
-              data-testid="submit-btn"
-              className="mt-4 w-full bg-brand-500 hover:bg-brand-600 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-lg py-4 rounded-2xl transition-all shadow-md"
-            >
-              Check it! ✓
-            </button>
+            {/* On-screen keyboard */}
+            <OnScreenKeyboard
+              onKey={(key) => {
+                setAnswer((prev) => prev + key);
+                inputRef.current?.focus();
+              }}
+              onBackspace={() => {
+                setAnswer((prev) => prev.slice(0, -1));
+                inputRef.current?.focus();
+              }}
+              onSubmit={handleSubmit}
+              canSubmit={answer.trim().length > 0}
+            />
           </div>
 
           {/* Feedback overlay */}
@@ -411,8 +490,21 @@ export default function PracticeSession({
                   </p>
                 ) : (
                   <div className="text-center px-6">
-                    <p className="text-white font-black text-xl mb-2">The correct spelling is:</p>
-                    <p className="text-white font-black text-3xl">{currentWord?.word}</p>
+                    <p className="text-white/80 font-bold text-base mb-1">You typed:</p>
+                    <p className="text-white font-black text-2xl mb-4 line-through decoration-2">
+                      {wordResults[wordResults.length - 1]?.userAnswer || answer}
+                    </p>
+                    <p className="text-white/80 font-bold text-base mb-1">The correct spelling is:</p>
+                    <p className="text-white font-black text-3xl mb-6">{currentWord?.word}</p>
+                    <button
+                      onClick={() => {
+                        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+                        advanceToNext();
+                      }}
+                      className="bg-white text-danger font-black text-lg px-8 py-3 rounded-2xl active:scale-95 transition-transform shadow-md"
+                    >
+                      Okay, got it!
+                    </button>
                   </div>
                 )}
               </motion.div>

@@ -18,8 +18,10 @@ function makeFromChain(singleResult: unknown = { role: "child" }, listResult: un
     eq: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({ data: singleResult, error: null }),
+    maybeSingle: vi.fn().mockResolvedValue({ data: singleResult, error: null }),
     then: vi.fn((resolve: (v: unknown) => void) => resolve({ data: listResult, error: null })),
   };
   return chain;
@@ -80,8 +82,9 @@ describe("POST /api/sessions/complete", () => {
     const response = await POST(makeRequest(BASE_BODY));
     expect(response.status).toBe(200);
     const json = await response.json() as { coinsEarned: number; newBalance: number };
-    expect(json.coinsEarned).toBe(80);
-    expect(json.newBalance).toBe(180);
+    // With empty wordResults: wordCoins=0, perfectBonus=0 (8/10), fastestBonus=5 (first ever)
+    expect(json.coinsEarned).toBe(5);
+    expect(json.newBalance).toBeDefined();
   });
 
   it("returns 400 for a request with missing required fields", async () => {

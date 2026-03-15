@@ -76,7 +76,7 @@ export const COINS_PER_CORRECT_WORD = 1;
 /** Bonus coins when answer is faster than the child's average speed. */
 export const COINS_FASTER_THAN_AVG = 2;
 
-/** Bonus coins when answer is the child's fastest ever for that word. */
+/** Bonus coins when session total time is the child's fastest ever for the set. */
 export const COINS_FASTEST_EVER = 5;
 
 /** Bonus coins for getting 100% correct in a session. */

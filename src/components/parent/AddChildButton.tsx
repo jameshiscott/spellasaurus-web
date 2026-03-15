@@ -8,9 +8,15 @@ import { useRouter } from "next/navigation";
 
 const schema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Must contain at least 1 uppercase letter")
+    .regex(/[a-z]/, "Must contain at least 1 lowercase letter")
+    .regex(/[0-9]/, "Must contain at least 1 number")
+    .regex(/[^A-Za-z0-9]/, "Must contain at least 1 special character"),
   classId: z.string().optional(),
+  showOnLeaderboard: z.boolean().optional(),
 });
 
 type AddChildFormValues = z.infer<typeof schema>;
@@ -138,8 +144,8 @@ export function AddChildButton() {
         body: JSON.stringify({
           fullName: data.fullName,
           password: data.password,
-          dateOfBirth: data.dateOfBirth,
           classId: data.classId || undefined,
+          showOnLeaderboard: data.showOnLeaderboard ?? false,
         }),
       });
       if (!res.ok) {
@@ -192,7 +198,7 @@ export function AddChildButton() {
                     </p>
                     <p className="text-lg font-black text-[#6C5CE7]">{createdUsername}</p>
                     <p className="text-xs text-muted-foreground">
-                      The password is the one you just set. Use these to log in on the child&apos;s device.
+                      The password is the one you just set. Use these to log in on the child&apos;s device. Once the child logs in for the first time they will be asked to setup the rest of their profile.
                     </p>
                   </div>
                 )}
@@ -235,7 +241,7 @@ export function AddChildButton() {
                     <input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Min 8 characters"
+                      placeholder="e.g. Dino123!"
                       className="flex-1 px-4 py-2 font-semibold focus:outline-none"
                       {...register("password")}
                     />
@@ -252,20 +258,21 @@ export function AddChildButton() {
                   )}
                 </div>
 
-                {/* Date of birth */}
+                {/* Leaderboard opt-in */}
                 <div className="space-y-1">
-                  <label htmlFor="dateOfBirth" className="block text-sm font-semibold">
-                    Date of Birth
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      {...register("showOnLeaderboard")}
+                      className="mt-1 h-4 w-4 rounded border-border text-[#6C5CE7] focus:ring-[#6C5CE7]"
+                    />
+                    <div>
+                      <span className="text-sm font-semibold">Show on leaderboard</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Only their display name is shown, never their real name. You can change this at any time in Settings.
+                      </p>
+                    </div>
                   </label>
-                  <input
-                    id="dateOfBirth"
-                    type="date"
-                    className="w-full rounded-xl border-2 border-border px-4 py-2 font-semibold focus:border-[#6C5CE7] focus:outline-none"
-                    {...register("dateOfBirth")}
-                  />
-                  {errors.dateOfBirth && (
-                    <p className="text-xs text-[#D63031]">{errors.dateOfBirth.message}</p>
-                  )}
                 </div>
 
                 {/* School & Class (optional) */}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { TABLES, USER_ROLES, COINS_PERFECT_BONUS } from "@/lib/constants";
+import { TABLES, USER_ROLES, COINS_PERFECT_BONUS, COINS_FASTEST_EVER } from "@/lib/constants";
 import { calculateWordCoins } from "@/lib/utils";
 
 const WordResultSchema = z.object({
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Fetch child's average time, word streak, and previous fastest times per word
+    // Fetch child's average time, word streak
     const { data: childStats } = await serviceClient
       .from(TABLES.CHILD_STATS)
       .select("average_time_ms, current_word_streak, best_word_streak")
@@ -128,37 +128,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const avgTimeMs = childStats?.average_time_ms ?? 0;
     let currentWordStreak = childStats?.current_word_streak ?? 0;
 
-    // Get fastest times for each word from previous sessions
-    const wordIds = wordResults.map((wr) => wr.wordId);
-    const { data: previousSessions } = await serviceClient
-      .from(TABLES.PRACTICE_SESSIONS)
-      .select("word_results")
-      .eq("child_id", childId);
-
-    const fastestTimesMap: Record<string, number> = {};
-    for (const session of previousSessions ?? []) {
-      const results = session.word_results as Array<{ wordId: string; wasCorrect: boolean; timeTakenMs: number }> | null;
-      if (!Array.isArray(results)) continue;
-      for (const wr of results) {
-        if (wr.wasCorrect && wordIds.includes(wr.wordId)) {
-          if (fastestTimesMap[wr.wordId] === undefined || wr.timeTakenMs < fastestTimesMap[wr.wordId]) {
-            fastestTimesMap[wr.wordId] = wr.timeTakenMs;
-          }
-        }
-      }
-    }
-
-    // Calculate per-word coin breakdown
+    // Calculate per-word coin breakdown (correctness + speed vs avg)
     const { breakdown, totalCoins: wordCoins } = calculateWordCoins(
       wordResults,
       avgTimeMs,
-      fastestTimesMap,
     );
+
+    // Check if this session is the fastest ever for this set
+    const { data: fastestSession } = await serviceClient
+      .from(TABLES.PRACTICE_SESSIONS)
+      .select("time_taken_ms")
+      .eq("child_id", childId)
+      .eq("set_id", setId)
+      .order("time_taken_ms", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    const isFastestEverSet = !fastestSession || timeTakenMs < fastestSession.time_taken_ms;
+    const fastestBonus = isFastestEverSet ? COINS_FASTEST_EVER : 0;
 
     // Add perfect score bonus if 100%
     const isPerfect = correctCount === totalWords;
     const perfectBonus = isPerfect ? COINS_PERFECT_BONUS : 0;
-    const coinsEarned = wordCoins + perfectBonus;
+    const coinsEarned = wordCoins + perfectBonus + fastestBonus;
 
     // Build enriched word_results with coin breakdown
     const enrichedWordResults = wordResults.map((wr) => {
@@ -167,7 +159,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         ...wr,
         coinsEarned: coinInfo?.total ?? 0,
         isFasterThanAvg: coinInfo?.isFasterThanAvg ?? false,
-        isFastestEver: coinInfo?.isFastestEver ?? false,
       };
     });
 
@@ -242,6 +233,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         sessionId,
         coinsEarned,
         perfectBonus,
+        fastestBonus,
+        isFastestEverSet,
         newBalance: result?.newBalance ?? null,
         currentDayStreak,
         bestDayStreak,
