@@ -40,15 +40,16 @@ export default async function ChildSettingsPage({ params }: Props) {
   // Practice settings (use defaults if none exist)
   const { data: rawSettings } = await supabase
     .from(TABLES.CHILD_PRACTICE_SETTINGS)
-    .select("play_tts_audio, show_description, show_example_sentence, leaderboard_opt_in")
+    .select("play_tts_audio, show_description, show_example_sentence, leaderboard_opt_in, keyboard_layout")
     .eq("child_id", childId)
-    .maybeSingle();
+    .maybeSingle() as { data: { play_tts_audio: boolean; show_description: boolean; show_example_sentence: boolean; leaderboard_opt_in: boolean; keyboard_layout: string } | null };
 
   const settings = {
     play_tts_audio: rawSettings?.play_tts_audio ?? true,
     show_description: rawSettings?.show_description ?? true,
     show_example_sentence: rawSettings?.show_example_sentence ?? true,
     leaderboard_opt_in: rawSettings?.leaderboard_opt_in ?? false,
+    keyboard_layout: (rawSettings?.keyboard_layout as "qwerty" | "abc") ?? "qwerty",
   };
 
   return (

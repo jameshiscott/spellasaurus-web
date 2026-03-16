@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useCoinBalance } from '@/contexts/CoinBalanceContext';
 
 interface ArcadeGame {
   id: string;
@@ -16,12 +17,11 @@ interface ArcadeGame {
 
 interface ArcadeLobbyProps {
   games: ArcadeGame[];
-  coinBalance: number;
 }
 
-export default function ArcadeLobby({ games, coinBalance }: ArcadeLobbyProps) {
+export default function ArcadeLobby({ games }: ArcadeLobbyProps) {
   const [unlocking, setUnlocking] = useState<string | null>(null);
-  const [balance, setBalance] = useState(coinBalance);
+  const { coinBalance, refreshBalance } = useCoinBalance();
   const [localUnlocks, setLocalUnlocks] = useState<Set<string>>(
     new Set(games.filter((g) => g.unlocked).map((g) => g.id)),
   );
@@ -37,9 +37,8 @@ export default function ArcadeLobby({ games, coinBalance }: ArcadeLobbyProps) {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setBalance(data.newBalance as number);
         setLocalUnlocks((prev) => new Set([...prev, gameId]));
+        await refreshBalance();
         router.refresh();
       } else {
         const data = await res.json();
@@ -69,7 +68,7 @@ export default function ArcadeLobby({ games, coinBalance }: ArcadeLobbyProps) {
     <div className="space-y-4">
       {games.map((game) => {
         const isUnlocked = localUnlocks.has(game.id);
-        const canAfford = balance >= game.price_coins;
+        const canAfford = coinBalance >= game.price_coins;
         const isUnlocking = unlocking === game.id;
 
         return (
@@ -126,7 +125,7 @@ export default function ArcadeLobby({ games, coinBalance }: ArcadeLobbyProps) {
 
               {!isUnlocked && !canAfford && (
                 <p className="text-xs text-red-500 font-semibold text-center">
-                  You need {game.price_coins - balance} more coins
+                  You need {game.price_coins - coinBalance} more coins
                 </p>
               )}
             </div>

@@ -17,6 +17,7 @@ const schema = z.object({
     .regex(/[^A-Za-z0-9]/, "Must contain at least 1 special character"),
   classId: z.string().optional(),
   showOnLeaderboard: z.boolean().optional(),
+  keyboardLayout: z.enum(["qwerty", "abc"]).optional(),
 });
 
 type AddChildFormValues = z.infer<typeof schema>;
@@ -59,7 +60,7 @@ export function AddChildButton() {
     formState: { errors },
   } = useForm<AddChildFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { showOnLeaderboard: true },
+    defaultValues: { showOnLeaderboard: true, keyboardLayout: "qwerty" },
   });
 
   // Fetch schools from API with search query
@@ -149,6 +150,7 @@ export function AddChildButton() {
           password: data.password,
           classId: data.classId || undefined,
           showOnLeaderboard: data.showOnLeaderboard ?? false,
+          keyboardLayout: data.keyboardLayout ?? "qwerty",
         }),
       });
       if (!res.ok) {
@@ -276,6 +278,40 @@ export function AddChildButton() {
                       </p>
                     </div>
                   </label>
+                </div>
+
+                {/* Keyboard layout */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-semibold">Keyboard Layout</label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Choose the on-screen keyboard style for spelling practice. You can change this later in Settings.
+                  </p>
+                  <div className="flex gap-3">
+                    <label className="flex-1 cursor-pointer">
+                      <input
+                        type="radio"
+                        value="qwerty"
+                        {...register("keyboardLayout")}
+                        className="sr-only peer"
+                      />
+                      <div className="rounded-xl border-2 border-border peer-checked:border-[#6C5CE7] peer-checked:bg-[#F8F6FF] p-3 text-center transition-colors">
+                        <p className="font-bold text-sm">QWERTY</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">q w e r t y...</p>
+                      </div>
+                    </label>
+                    <label className="flex-1 cursor-pointer">
+                      <input
+                        type="radio"
+                        value="abc"
+                        {...register("keyboardLayout")}
+                        className="sr-only peer"
+                      />
+                      <div className="rounded-xl border-2 border-border peer-checked:border-[#6C5CE7] peer-checked:bg-[#F8F6FF] p-3 text-center transition-colors">
+                        <p className="font-bold text-sm">ABC</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">a b c d e f...</p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 {/* School & Class (optional) */}

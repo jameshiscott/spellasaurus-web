@@ -3,6 +3,7 @@ import { TABLES } from "@/lib/constants";
 import Link from "next/link";
 import DinoAvatar from "@/components/dino/DinoAvatar";
 import type { DinoType, DinoColor, EquipmentSlot } from "@/components/dino/dino-types";
+import { CoinDisplay } from "@/components/child/CoinDisplay";
 
 export default async function ChildHomePage() {
   const supabase = await createClient();
@@ -12,7 +13,7 @@ export default async function ChildHomePage() {
 
   const { data: profile } = await supabase
     .from(TABLES.USERS)
-    .select("display_name, coin_balance, dino_type, dino_color, avatar_loadout")
+    .select("display_name, dino_type, dino_color, avatar_loadout")
     .eq("id", user!.id)
     .single();
 
@@ -147,10 +148,7 @@ export default async function ChildHomePage() {
       <div className="bg-warning/20 rounded-2xl px-5 py-3 flex items-center gap-3">
         <span className="text-2xl">🪙</span>
         <div>
-          <p className="text-xs font-bold text-yellow-700 uppercase tracking-wide">Coins</p>
-          <p className="text-2xl font-black text-yellow-800">
-            {profile?.coin_balance ?? 0}
-          </p>
+          <CoinDisplay size="lg" label="Coins" />
         </div>
         <div className="ml-auto flex gap-2">
           <Link

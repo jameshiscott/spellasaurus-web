@@ -143,14 +143,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       sentenceWithBlank?: string;
     };
 
-    // Generate TTS audio for the word
-    const mp3 = await openai.audio.speech.create({
-      model: 'tts-1',
-      voice: 'alloy',
-      input: word,
-    });
+    // Generate TTS audio for the word (retry with different voices if silent)
+    const VOICES: Array<'alloy' | 'echo' | 'nova'> = ['alloy', 'echo', 'nova'];
+    const MAX_TTS_ATTEMPTS = 3;
+    let audioBuffer: Buffer | null = null;
 
-    const audioBuffer = Buffer.from(await mp3.arrayBuffer());
+    for (let attempt = 0; attempt < MAX_TTS_ATTEMPTS; attempt++) {
+      const voice = VOICES[attempt % VOICES.length];
+      const mp3 = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice,
+        input: word,
+      });
+      const buf = Buffer.from(await mp3.arrayBuffer());
+      if (hasAudioContent(buf)) {
+        audioBuffer = buf;
+        break;
+      }
+      console.warn(`TTS attempt ${attempt + 1} (voice=${voice}) likely silent for "${word}" (${buf.length} bytes)`);
+    }
+
+    if (!audioBuffer) {
+      // Last resort: add context to force speech
+      const mp3 = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice: 'nova',
+        input: `The word is: ${word}.`,
+      });
+      audioBuffer = Buffer.from(await mp3.arrayBuffer());
+    }
 
     // Upload MP3 to Supabase Storage
     const storagePath = `words/${wordId}.mp3`;
@@ -197,4 +218,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.error('Unexpected error in words/generate-content:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+/**
+ * Heuristic to detect if an MP3 buffer contains actual audio vs silence.
+ * Checks the variance of byte values in the audio data portion.
+ * Silent MP3 frames have very low byte diversity.
+ */
+function hasAudioContent(buf: Buffer): boolean {
+  if (buf.length < 512) return false;
+  const start = Math.min(256, Math.floor(buf.length * 0.1));
+  const sampleSize = Math.min(2048, buf.length - start);
+  const slice = buf.subarray(start, start + sampleSize);
+  const seen = new Set<number>();
+  for (let i = 0; i < slice.length; i++) {
+    seen.add(slice[i]);
+  }
+  return seen.size > 40;
 }

@@ -3,6 +3,7 @@ import { TABLES } from '@/lib/constants';
 import Link from 'next/link';
 import ArcadeLobby from '@/components/child/ArcadeLobby';
 import ArcadeLeaderboard from '@/components/child/ArcadeLeaderboard';
+import { CoinDisplay } from '@/components/child/CoinDisplay';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,15 +28,7 @@ export default async function ArcadePage() {
     .select('game_id')
     .eq('child_id', user!.id);
 
-  // Fetch coin balance
-  const { data: profile } = await serviceClient
-    .from(TABLES.USERS)
-    .select('coin_balance')
-    .eq('id', user!.id)
-    .single();
-
   const unlockedGameIds = new Set(unlocks?.map((u) => u.game_id) ?? []);
-  const coinBalance = (profile?.coin_balance as number) ?? 0;
 
   const gamesWithStatus = (games ?? []).map((game) => ({
     ...game,
@@ -56,12 +49,11 @@ export default async function ArcadePage() {
       <div className="bg-warning/20 rounded-2xl px-5 py-3 flex items-center gap-3">
         <span className="text-2xl">🪙</span>
         <div>
-          <p className="text-xs font-bold text-yellow-700 uppercase tracking-wide">Your Coins</p>
-          <p className="text-xl font-black text-yellow-800">{coinBalance}</p>
+          <CoinDisplay />
         </div>
       </div>
 
-      <ArcadeLobby games={gamesWithStatus} coinBalance={coinBalance} />
+      <ArcadeLobby games={gamesWithStatus} />
 
       {/* Leaderboards for each game */}
       {(games ?? []).map((game) => (

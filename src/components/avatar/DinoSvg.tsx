@@ -467,7 +467,7 @@ export function DinoSvg({
         if (!itemId) return null;
         const pos = SLOT_POSITIONS[slot as keyof typeof SLOT_POSITIONS];
         if (!pos) return null;
-        // Placeholder rect — real items would render their own SVG/image here
+        // Placeholder rect — real items render via DinoAvatar + equipment-shapes
         return (
           <rect
             key={slot}

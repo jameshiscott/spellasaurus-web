@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DinoAvatar from '@/components/dino/DinoAvatar';
 import type { DinoType, DinoColor, EquipmentSlot } from '@/components/dino/dino-types';
+import { renderShopItemSvg } from '@/components/avatar/ShopItemSvgs';
 
 const SLOT_LABELS: Record<EquipmentSlot, string> = {
   head: '🎩 Head',
@@ -170,8 +171,8 @@ export default function WardrobeClient({
                     : 'hover:shadow-md hover:ring-1 hover:ring-brand-200'
                 }`}
               >
-                <div className="w-full aspect-square bg-brand-50 rounded-xl mb-2 flex items-center justify-center text-4xl">
-                  {SLOT_ICONS[activeSlot]}
+                <div className="w-full aspect-square bg-brand-50 rounded-xl mb-2 flex items-center justify-center text-4xl overflow-hidden">
+                  {renderShopItemSvg(item_id, 80, 80) ?? SLOT_ICONS[activeSlot]}
                 </div>
                 <p className="font-black text-sm text-foreground leading-tight">
                   {shop_items.name}

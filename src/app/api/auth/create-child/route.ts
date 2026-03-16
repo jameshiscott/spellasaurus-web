@@ -8,6 +8,7 @@ const CreateChildSchema = z.object({
   password: z.string().min(1),
   classId: z.string().uuid().optional(),
   showOnLeaderboard: z.boolean().optional(),
+  keyboardLayout: z.enum(["qwerty", "abc"]).optional(),
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { fullName, password, classId, showOnLeaderboard } = parsed.data;
+    const { fullName, password, classId, showOnLeaderboard, keyboardLayout } = parsed.data;
 
     const supabase = await createClient();
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -146,6 +147,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           });
       }
     }
+
+    // Create initial practice settings with keyboard layout and leaderboard preference
+    await serviceClient
+      .from(TABLES.CHILD_PRACTICE_SETTINGS)
+      .insert({
+        child_id: newUser.id,
+        keyboard_layout: keyboardLayout ?? "qwerty",
+        leaderboard_opt_in: showOnLeaderboard ?? false,
+      });
 
     return NextResponse.json({ childId: newUser.id, username }, { status: 201 });
   } catch (error) {

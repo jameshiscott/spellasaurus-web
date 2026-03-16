@@ -50,6 +50,34 @@ export default async function ChildDetailPage({ params }: Props) {
 
   const serviceClient = createServiceClient();
 
+  // Child stats
+  const { data: stats } = await serviceClient
+    .from(TABLES.CHILD_STATS)
+    .select("total_sessions, total_words, total_correct, weekly_coins, average_time_ms, current_streak")
+    .eq("child_id", childId)
+    .single();
+
+  // Total coins ever earned
+  const { data: practiceData } = await serviceClient
+    .from(TABLES.PRACTICE_SESSIONS)
+    .select("coins_awarded")
+    .eq("child_id", childId);
+
+  const totalCoinsEver = (practiceData ?? []).reduce(
+    (sum: number, s: { coins_awarded: number | null }) => sum + (s.coins_awarded ?? 0),
+    0
+  );
+
+  const accuracy =
+    stats && stats.total_words > 0
+      ? Math.round((stats.total_correct / stats.total_words) * 100)
+      : null;
+
+  const avgSpeed =
+    stats && stats.average_time_ms > 0
+      ? Math.round(stats.average_time_ms / 1000)
+      : null;
+
   // Personal sets assigned to child
   const { data: personalSetLinks } = await serviceClient
     .from(TABLES.CHILD_PERSONAL_SETS)
@@ -186,6 +214,20 @@ export default async function ChildDetailPage({ params }: Props) {
         </div>
       </div>
 
+      {/* Stats */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-border">
+        <h2 className="text-lg font-black text-foreground mb-4">Practice Stats</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <StatCard emoji="📝" label="Sessions" value={stats?.total_sessions ?? 0} />
+          <StatCard emoji="📖" label="Words Practised" value={stats?.total_words ?? 0} />
+          <StatCard emoji="✅" label="Accuracy" value={accuracy !== null ? `${accuracy}%` : "—"} />
+          <StatCard emoji="🔥" label="Day Streak" value={stats?.current_streak ?? 0} />
+          <StatCard emoji="⏱️" label="Avg Speed" value={avgSpeed !== null ? `${avgSpeed}s` : "—"} />
+          <StatCard emoji="🪙" label="Coins This Week" value={stats?.weekly_coins ?? 0} />
+          <StatCard emoji="💰" label="Total Coins Earned" value={totalCoinsEver} />
+        </div>
+      </div>
+
       {/* Class section */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-border">
         <h2 className="text-lg font-black text-foreground mb-4">Class</h2>
@@ -265,6 +307,24 @@ export default async function ChildDetailPage({ params }: Props) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function StatCard({
+  emoji,
+  label,
+  value,
+}: {
+  emoji: string;
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="bg-[#F8F6FF] rounded-xl p-4 text-center">
+      <div className="text-2xl mb-1">{emoji}</div>
+      <div className="text-xl font-black text-foreground">{value}</div>
+      <div className="text-xs text-muted-foreground font-semibold mt-0.5">{label}</div>
     </div>
   );
 }

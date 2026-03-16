@@ -3,6 +3,8 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+type RegenerateState = "idle" | "loading" | "done";
+
 interface WordCardProps {
   word: {
     id: string;
@@ -23,6 +25,7 @@ export default function WordCard({ word }: WordCardProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [regenAudio, setRegenAudio] = useState<RegenerateState>("idle");
 
   const hasAiContent = word.ai_generated_at !== null;
 
@@ -75,6 +78,33 @@ export default function WordCard({ word }: WordCardProps) {
     audioRef.current?.play();
   };
 
+  const handleRegenerateAudio = async () => {
+    setRegenAudio("loading");
+    try {
+      const res = await fetch("/api/words/regenerate-audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wordId: word.id }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { audioUrl: string };
+        // Update the audio element source so they can test it immediately
+        if (audioRef.current) {
+          audioRef.current.src = data.audioUrl;
+          audioRef.current.load();
+          audioRef.current.play().catch(() => {});
+        }
+        setRegenAudio("done");
+        // Reset after a moment
+        setTimeout(() => setRegenAudio("idle"), 3000);
+      } else {
+        setRegenAudio("idle");
+      }
+    } catch {
+      setRegenAudio("idle");
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-brand-500 flex gap-4 relative">
       {/* Loading overlay */}
@@ -115,7 +145,7 @@ export default function WordCard({ word }: WordCardProps) {
             )}
 
             {word.audio_url && (
-              <>
+              <div className="flex items-center gap-2">
                 <audio ref={audioRef} src={word.audio_url} preload="none" className="hidden" />
                 <button
                   type="button"
@@ -124,7 +154,19 @@ export default function WordCard({ word }: WordCardProps) {
                 >
                   🔊 Play Audio
                 </button>
-              </>
+                <button
+                  type="button"
+                  onClick={() => void handleRegenerateAudio()}
+                  disabled={regenAudio === "loading"}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-colors disabled:opacity-50"
+                >
+                  {regenAudio === "loading"
+                    ? "Regenerating..."
+                    : regenAudio === "done"
+                      ? "✓ Audio updated"
+                      : "🔄 Fix Audio"}
+                </button>
+              </div>
             )}
           </>
         ) : (

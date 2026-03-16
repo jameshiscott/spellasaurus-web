@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TABLES, USER_ROLES } from "@/lib/constants";
 import { ChildHeader } from "@/components/child/ChildHeader";
 import WelcomeModal from "@/components/WelcomeModal";
+import { CoinBalanceProvider } from "@/contexts/CoinBalanceContext";
 
 /**
  * Layout for all authenticated, onboarded child routes.
@@ -23,7 +24,7 @@ export default async function ChildMainLayout({
 
   const { data: profile } = await supabase
     .from(TABLES.USERS)
-    .select("role, onboarding_complete, display_name, last_seen_version")
+    .select("role, onboarding_complete, display_name, last_seen_version, coin_balance")
     .eq("id", user.id)
     .single();
 
@@ -36,10 +37,12 @@ export default async function ChildMainLayout({
   }
 
   return (
-    <div className="min-h-screen bg-surface">
-      <WelcomeModal lastSeenVersion={profile.last_seen_version ?? null} />
-      <ChildHeader displayName={profile.display_name ?? "Explorer"} />
-      <main className="max-w-lg mx-auto px-4 pb-8">{children}</main>
-    </div>
+    <CoinBalanceProvider initialBalance={profile.coin_balance ?? 0}>
+      <div className="min-h-screen bg-surface">
+        <WelcomeModal lastSeenVersion={profile.last_seen_version ?? null} />
+        <ChildHeader displayName={profile.display_name ?? "Explorer"} />
+        <main className="max-w-lg mx-auto px-4 pb-8">{children}</main>
+      </div>
+    </CoinBalanceProvider>
   );
 }

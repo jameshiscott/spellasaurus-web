@@ -52,10 +52,10 @@ export default async function ResultsPage({ params }: PageProps) {
 
   if (sessionError || !session) notFound();
 
-  // Fetch coin balance and display name
+  // Fetch display name
   const { data: profile } = await supabase
     .from(TABLES.USERS)
-    .select("coin_balance, display_name")
+    .select("display_name")
     .eq("id", user.id)
     .single();
 
@@ -95,7 +95,6 @@ export default async function ResultsPage({ params }: PageProps) {
         completed_at: session.completed_at,
         word_results: wordResults,
       }}
-      newBalance={profile?.coin_balance ?? 0}
       displayName={profile?.display_name ?? "there"}
       currentWordStreak={childStats?.current_word_streak ?? 0}
       bestWordStreak={childStats?.best_word_streak ?? 0}

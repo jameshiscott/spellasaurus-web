@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { TABLES } from '@/lib/constants';
 import Link from 'next/link';
 import ShopItemCard from '@/components/child/ShopItemCard';
+import { CoinDisplay } from '@/components/child/CoinDisplay';
 
 const CATEGORY_LABELS: Record<string, string> = {
   hats: '🎩 Hats',
@@ -18,12 +19,6 @@ export default async function ShopPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase
-    .from(TABLES.USERS)
-    .select('coin_balance')
-    .eq('id', user!.id)
-    .single();
-
   const { data: items } = await supabase
     .from(TABLES.SHOP_ITEMS)
     .select('id, name, description, category, slot, price_coins, rarity, asset_url')
@@ -36,7 +31,6 @@ export default async function ShopPage() {
     .eq('child_id', user!.id);
 
   const ownedIds = new Set(inventory?.map((i) => i.item_id) ?? []);
-  const coinBalance = profile?.coin_balance ?? 0;
 
   // Group items by category
   const byCategory: Record<string, typeof items> = {};
@@ -64,8 +58,7 @@ export default async function ShopPage() {
       <div className="bg-warning/20 rounded-2xl px-5 py-3 flex items-center gap-3">
         <span className="text-2xl">🪙</span>
         <div>
-          <p className="text-xs font-bold text-yellow-700 uppercase tracking-wide">Your Coins</p>
-          <p className="text-2xl font-black text-yellow-800">{coinBalance}</p>
+          <CoinDisplay size="lg" />
         </div>
         <div className="ml-auto">
           <Link
@@ -94,7 +87,6 @@ export default async function ShopPage() {
                   key={item.id}
                   item={item}
                   isOwned={ownedIds.has(item.id)}
-                  coinBalance={coinBalance}
                 />
               ))}
             </div>

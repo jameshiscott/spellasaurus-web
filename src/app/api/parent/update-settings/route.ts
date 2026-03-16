@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES, USER_ROLES } from "@/lib/constants";
 
-const UpdateSettingsSchema = z.object({
+const BooleanSettingSchema = z.object({
   childId: z.string().min(1),
   field: z.enum([
     "play_tts_audio",
@@ -13,6 +13,14 @@ const UpdateSettingsSchema = z.object({
   ]),
   value: z.boolean(),
 });
+
+const KeyboardLayoutSchema = z.object({
+  childId: z.string().min(1),
+  field: z.literal("keyboard_layout"),
+  value: z.enum(["qwerty", "abc"]),
+});
+
+const UpdateSettingsSchema = z.union([BooleanSettingSchema, KeyboardLayoutSchema]);
 
 export async function PATCH(request: NextRequest): Promise<NextResponse> {
   try {

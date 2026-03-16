@@ -113,13 +113,18 @@ export default async function SetsPage() {
   return (
     <div className="pt-6 space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-black text-foreground">
-          My Spelling Sets 🦕
-        </h1>
-        <p className="text-muted-foreground font-semibold mt-1">
-          Pick a set to practise!
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-black text-foreground">
+            My Spelling Sets 🦕
+          </h1>
+          <p className="text-muted-foreground font-semibold mt-1">
+            Pick a set to practise!
+          </p>
+        </div>
+        <Link href="/child" className="text-sm font-bold text-brand-500 hover:underline">
+          ← Back
+        </Link>
       </div>
 
       {/* This Week's Class Sets */}

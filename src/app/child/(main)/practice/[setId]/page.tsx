@@ -86,14 +86,15 @@ export default async function PracticePage({ params }: PageProps) {
   // Get practice settings (defaults if none found)
   const { data: rawSettings } = await supabase
     .from(TABLES.CHILD_PRACTICE_SETTINGS)
-    .select("play_tts_audio, show_description, show_example_sentence")
+    .select("play_tts_audio, show_description, show_example_sentence, keyboard_layout")
     .eq("child_id", user.id)
-    .single();
+    .single() as { data: { play_tts_audio: boolean; show_description: boolean; show_example_sentence: boolean; keyboard_layout: string } | null };
 
-  const settings = rawSettings ?? {
-    play_tts_audio: true,
-    show_description: true,
-    show_example_sentence: true,
+  const settings = {
+    play_tts_audio: rawSettings?.play_tts_audio ?? true,
+    show_description: rawSettings?.show_description ?? true,
+    show_example_sentence: rawSettings?.show_example_sentence ?? true,
+    keyboard_layout: (rawSettings?.keyboard_layout as "qwerty" | "abc") ?? "qwerty",
   };
 
   // Fetch current word streak

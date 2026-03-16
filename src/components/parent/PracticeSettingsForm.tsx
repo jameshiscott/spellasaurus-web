@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 
+type KeyboardLayout = "qwerty" | "abc";
+
 interface PracticeSettingsFormProps {
   childId: string;
   childName: string;
@@ -10,10 +12,11 @@ interface PracticeSettingsFormProps {
     show_description: boolean;
     show_example_sentence: boolean;
     leaderboard_opt_in: boolean;
+    keyboard_layout: KeyboardLayout;
   };
 }
 
-type SettingField =
+type BooleanField =
   | "play_tts_audio"
   | "show_description"
   | "show_example_sentence"
@@ -54,14 +57,13 @@ export function PracticeSettingsForm({
   settings: initialSettings,
 }: PracticeSettingsFormProps) {
   const [settings, setSettings] = useState(initialSettings);
-  const [saving, setSaving] = useState<SettingField | null>(null);
-  const [saved, setSaved] = useState<SettingField | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleToggle = useCallback(
-    async (field: SettingField, value: boolean) => {
+    async (field: BooleanField, value: boolean) => {
       const previous = settings[field];
-      // Optimistic update
       setSettings((prev) => ({ ...prev, [field]: value }));
       setSaving(field);
       setError(null);
@@ -73,14 +75,10 @@ export function PracticeSettingsForm({
           body: JSON.stringify({ childId, field, value }),
         });
 
-        if (!res.ok) {
-          throw new Error("Failed to save");
-        }
-
+        if (!res.ok) throw new Error("Failed to save");
         setSaved(field);
         setTimeout(() => setSaved(null), 2000);
       } catch {
-        // Revert on error
         setSettings((prev) => ({ ...prev, [field]: previous }));
         setError("Failed to save setting. Please try again.");
       } finally {
@@ -90,8 +88,35 @@ export function PracticeSettingsForm({
     [childId, settings]
   );
 
+  const handleKeyboardLayout = useCallback(
+    async (layout: KeyboardLayout) => {
+      const previous = settings.keyboard_layout;
+      setSettings((prev) => ({ ...prev, keyboard_layout: layout }));
+      setSaving("keyboard_layout");
+      setError(null);
+
+      try {
+        const res = await fetch("/api/parent/update-settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ childId, field: "keyboard_layout", value: layout }),
+        });
+
+        if (!res.ok) throw new Error("Failed to save");
+        setSaved("keyboard_layout");
+        setTimeout(() => setSaved(null), 2000);
+      } catch {
+        setSettings((prev) => ({ ...prev, keyboard_layout: previous }));
+        setError("Failed to save setting. Please try again.");
+      } finally {
+        setSaving(null);
+      }
+    },
+    [childId, settings.keyboard_layout]
+  );
+
   const toggleRows: Array<{
-    field: SettingField;
+    field: BooleanField;
     label: string;
     description: string;
     extra?: React.ReactNode;
@@ -160,6 +185,54 @@ export function PracticeSettingsForm({
             </div>
           </div>
         ))}
+
+        {/* Keyboard layout selector */}
+        <div className="px-6 py-5">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3">
+                <p className="font-bold text-foreground">Keyboard layout</p>
+                {saving === "keyboard_layout" && (
+                  <span className="text-xs text-muted-foreground animate-pulse">
+                    Saving…
+                  </span>
+                )}
+                {saved === "keyboard_layout" && saving !== "keyboard_layout" && (
+                  <span className="text-xs font-semibold text-[#00B894]">
+                    Saved ✓
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Choose the on-screen keyboard layout for spelling practice
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => void handleKeyboardLayout("qwerty")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                  settings.keyboard_layout === "qwerty"
+                    ? "bg-[#6C5CE7] text-white"
+                    : "bg-gray-100 text-foreground hover:bg-gray-200"
+                }`}
+              >
+                QWERTY
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleKeyboardLayout("abc")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                  settings.keyboard_layout === "abc"
+                    ? "bg-[#6C5CE7] text-white"
+                    : "bg-gray-100 text-foreground hover:bg-gray-200"
+                }`}
+              >
+                ABC
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { TABLES } from "@/lib/constants";
 import Link from "next/link";
 import type { DinoType, DinoColor, EquipmentSlot } from "@/components/dino/dino-types";
 import DinoAvatar from "@/components/dino/DinoAvatar";
+import { CoinDisplay } from "@/components/child/CoinDisplay";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export default async function ChildProfilePage() {
 
   const { data: profile } = await supabase
     .from(TABLES.USERS)
-    .select("display_name, coin_balance, dino_type, dino_color, avatar_loadout")
+    .select("display_name, dino_type, dino_color, avatar_loadout")
     .eq("id", user!.id)
     .single();
 
@@ -103,9 +104,7 @@ export default async function ChildProfilePage() {
         {/* Coin balance */}
         <div className="flex items-center gap-2 bg-warning/20 rounded-2xl px-5 py-2">
           <span className="text-xl">🪙</span>
-          <span className="text-xl font-black text-yellow-800">
-            {profile?.coin_balance ?? 0} coins
-          </span>
+          <CoinDisplay />
         </div>
 
         {/* Links */}

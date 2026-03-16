@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AddWordToListForm } from "@/components/parent/AddWordToListForm";
 import { AssignListButton } from "@/components/parent/AssignListButton";
 import { DeleteWordButton } from "@/components/parent/DeleteWordButton";
+import { WordAudioButton } from "@/components/parent/WordAudioButton";
 
 interface Props {
   params: Promise<{ setId: string }>;
@@ -36,7 +37,7 @@ export default async function EditListPage({ params }: Props) {
   // All words for this set
   const { data: words } = await serviceClient
     .from(TABLES.SPELLING_WORDS)
-    .select("id, word, hint, sort_order")
+    .select("id, word, hint, sort_order, audio_url")
     .eq("set_id", setId)
     .order("sort_order", { ascending: true });
 
@@ -157,6 +158,7 @@ export default async function EditListPage({ params }: Props) {
                     </p>
                   )}
                 </div>
+                <WordAudioButton wordId={w.id} audioUrl={w.audio_url} />
                 <DeleteWordButton wordId={w.id} />
               </div>
             ))}

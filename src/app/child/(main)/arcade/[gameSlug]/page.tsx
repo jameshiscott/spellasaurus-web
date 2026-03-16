@@ -66,22 +66,12 @@ export default async function ArcadeGamePage({ params }: GamePageProps) {
     lives = ARCADE_STARTING_LIVES;
   }
 
-  // Fetch coin balance
-  const { data: profile } = await serviceClient
-    .from(TABLES.USERS)
-    .select('coin_balance')
-    .eq('id', user.id)
-    .single();
-
-  const coinBalance = (profile?.coin_balance as number) ?? 0;
-
   return (
     <GamePlayer
       slug={game.slug}
       name={game.name}
       gameId={game.id}
       initialLives={lives}
-      coinBalance={coinBalance}
     />
   );
 }

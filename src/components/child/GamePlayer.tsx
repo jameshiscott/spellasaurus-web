@@ -3,13 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ARCADE_LIFE_COST } from '@/lib/constants';
+import { useCoinBalance } from '@/contexts/CoinBalanceContext';
 
 interface GamePlayerProps {
   slug: string;
   name: string;
   gameId: string;
   initialLives: number;
-  coinBalance: number;
 }
 
 type Screen = 'launch' | 'playing' | 'game_over' | 'game_won';
@@ -19,11 +19,10 @@ export default function GamePlayer({
   name,
   gameId,
   initialLives,
-  coinBalance: initialBalance,
 }: GamePlayerProps) {
   const [screen, setScreen] = useState<Screen>('launch');
   const [lives, setLives] = useState(initialLives);
-  const [balance, setBalance] = useState(initialBalance);
+  const { coinBalance, refreshBalance } = useCoinBalance();
   const [finalScore, setFinalScore] = useState(0);
   const [buying, setBuying] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -94,7 +93,7 @@ export default function GamePlayer({
   }
 
   async function buyLife() {
-    if (balance < ARCADE_LIFE_COST || buying) return;
+    if (coinBalance < ARCADE_LIFE_COST || buying) return;
     setBuying(true);
     try {
       const res = await fetch('/api/arcade/lives', {
@@ -105,7 +104,7 @@ export default function GamePlayer({
       if (res.ok) {
         const data = await res.json();
         setLives(data.lives as number);
-        setBalance(data.newBalance as number);
+        await refreshBalance();
       } else {
         const data = await res.json();
         if (data.error === 'insufficient_coins') {
@@ -156,13 +155,13 @@ export default function GamePlayer({
           {/* Coin balance */}
           <div className="bg-warning/20 rounded-2xl px-4 py-2 inline-flex items-center gap-2">
             <span className="text-xl">🪙</span>
-            <span className="font-black text-yellow-800">{balance}</span>
+            <span className="font-black text-yellow-800">{coinBalance}</span>
           </div>
 
           {/* Buy life button */}
           <button
             onClick={buyLife}
-            disabled={balance < ARCADE_LIFE_COST || buying}
+            disabled={coinBalance < ARCADE_LIFE_COST || buying}
             className="w-full rounded-2xl bg-yellow-500 text-white font-bold py-3 text-sm hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {buying
@@ -226,14 +225,14 @@ export default function GamePlayer({
           {/* Coin balance */}
           <div className="bg-warning/20 rounded-2xl px-4 py-2 inline-flex items-center gap-2">
             <span className="text-xl">🪙</span>
-            <span className="font-black text-yellow-800">{balance}</span>
+            <span className="font-black text-yellow-800">{coinBalance}</span>
           </div>
 
           {/* Buy life */}
           {lives === 0 && (
             <button
               onClick={buyLife}
-              disabled={balance < ARCADE_LIFE_COST || buying}
+              disabled={coinBalance < ARCADE_LIFE_COST || buying}
               className="w-full rounded-2xl bg-yellow-500 text-white font-bold py-3 text-sm hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {buying

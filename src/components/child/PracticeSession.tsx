@@ -19,6 +19,7 @@ interface PracticeSettings {
   play_tts_audio: boolean;
   show_description: boolean;
   show_example_sentence: boolean;
+  keyboard_layout: "qwerty" | "abc";
 }
 
 interface WordResult {
@@ -49,10 +50,16 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-const KEYBOARD_ROWS = [
+const QWERTY_ROWS = [
   ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
   ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
   ["z", "x", "c", "v", "b", "n", "m"],
+];
+
+const ABC_ROWS = [
+  ["a", "b", "c", "d", "e", "f", "g", "h", "i"],
+  ["j", "k", "l", "m", "n", "o", "p", "q", "r"],
+  ["s", "t", "u", "v", "w", "x", "y", "z"],
 ];
 
 function OnScreenKeyboard({
@@ -60,17 +67,22 @@ function OnScreenKeyboard({
   onBackspace,
   onSubmit,
   canSubmit,
+  layout = "qwerty",
 }: {
   onKey: (key: string) => void;
   onBackspace: () => void;
   onSubmit: () => void;
   canSubmit: boolean;
+  layout?: "qwerty" | "abc";
 }) {
+  const rows = layout === "abc" ? ABC_ROWS : QWERTY_ROWS;
+  const lastRowIndex = rows.length - 1;
+
   return (
     <div className="w-full mt-3 select-none">
-      {KEYBOARD_ROWS.map((row, ri) => (
+      {rows.map((row, ri) => (
         <div key={ri} className="flex justify-center gap-[3px] mb-[3px]">
-          {ri === 2 && (
+          {ri === lastRowIndex && (
             <button
               type="button"
               onClick={onSubmit}
@@ -90,7 +102,7 @@ function OnScreenKeyboard({
               {key}
             </button>
           ))}
-          {ri === 2 && (
+          {ri === lastRowIndex && (
             <button
               type="button"
               onClick={onBackspace}
@@ -165,16 +177,20 @@ export default function PracticeSession({
     const audio = new Audio(currentWord.audio_url);
     audioRef.current = audio;
     audio.play().catch(() => {});
-    // Play a second time after the first finishes
+    // Play a second time after a 1-second gap
+    let gapTimer: ReturnType<typeof setTimeout> | null = null;
     const handleEnded = () => {
       audio.removeEventListener("ended", handleEnded);
-      const audio2 = new Audio(currentWord.audio_url!);
-      audioRef.current = audio2;
-      audio2.play().catch(() => {});
+      gapTimer = setTimeout(() => {
+        const audio2 = new Audio(currentWord.audio_url!);
+        audioRef.current = audio2;
+        audio2.play().catch(() => {});
+      }, 1000);
     };
     audio.addEventListener("ended", handleEnded);
     return () => {
       audio.removeEventListener("ended", handleEnded);
+      if (gapTimer) clearTimeout(gapTimer);
     };
   }, [phase, currentIndex, currentWord?.audio_url, settings.play_tts_audio]);
 
@@ -249,6 +265,7 @@ export default function PracticeSession({
     audioRef.current = audio;
     audio.play().catch(() => {});
   }
+
 
   const submitSession = useCallback(
     async (results: WordResult[]) => {
@@ -496,6 +513,7 @@ export default function PracticeSession({
               }}
               onSubmit={handleSubmit}
               canSubmit={answer.trim().length > 0}
+              layout={settings.keyboard_layout}
             />
           </div>
 

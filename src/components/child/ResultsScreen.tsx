@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { getStarRating, getScorePercent } from "@/lib/utils";
 import { COINS_PERFECT_BONUS, COINS_FASTEST_EVER } from "@/lib/constants";
+import { useCoinBalance } from "@/contexts/CoinBalanceContext";
 
 interface WordResult {
   wordId: string;
@@ -26,7 +27,6 @@ interface ResultsScreenProps {
     completed_at: string;
     word_results: WordResult[];
   };
-  newBalance: number;
   displayName: string;
   currentWordStreak?: number;
   bestWordStreak?: number;
@@ -81,12 +81,17 @@ function CoinCounter({ target }: { target: number }) {
 
 export default function ResultsScreen({
   session,
-  newBalance,
   displayName,
   currentWordStreak = 0,
   bestWordStreak = 0,
   isFastestEverSet = false,
 }: ResultsScreenProps) {
+  const { coinBalance, refreshBalance } = useCoinBalance();
+
+  // Refresh balance when results screen mounts (coins just earned)
+  useEffect(() => {
+    void refreshBalance();
+  }, [refreshBalance]);
   const { correct_count, total_words, coins_awarded, word_results } = session;
   const percent = getScorePercent(correct_count, total_words);
   const stars = getStarRating(correct_count, total_words);
@@ -136,7 +141,7 @@ export default function ResultsScreen({
                 You earned <CoinCounter target={coins_awarded} /> coins!
               </p>
               <p className="text-sm text-yellow-700 font-semibold">
-                Total: {newBalance} coins
+                Total: {coinBalance} coins
               </p>
             </div>
           </div>

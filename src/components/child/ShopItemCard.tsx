@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { renderShopItemSvg } from '@/components/avatar/ShopItemSvgs';
+import { useCoinBalance } from '@/contexts/CoinBalanceContext';
 
 interface ShopItem {
   id: string;
@@ -17,7 +19,6 @@ interface ShopItem {
 interface ShopItemCardProps {
   item: ShopItem;
   isOwned: boolean;
-  coinBalance: number;
 }
 
 const RARITY_STYLES: Record<string, string> = {
@@ -37,11 +38,12 @@ const SLOT_ICONS: Record<string, string> = {
   accessory: '⭐',
 };
 
-export default function ShopItemCard({ item, isOwned, coinBalance }: ShopItemCardProps) {
+export default function ShopItemCard({ item, isOwned }: ShopItemCardProps) {
   const [loading, setLoading] = useState(false);
   const [owned, setOwned] = useState(isOwned);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { coinBalance, refreshBalance } = useCoinBalance();
 
   async function handleBuy() {
     setLoading(true);
@@ -55,6 +57,7 @@ export default function ShopItemCard({ item, isOwned, coinBalance }: ShopItemCar
       const data = await res.json();
       if (res.ok) {
         setOwned(true);
+        await refreshBalance();
         router.refresh();
       } else if (data.error === 'already_owned') {
         setOwned(true);
@@ -75,8 +78,8 @@ export default function ShopItemCard({ item, isOwned, coinBalance }: ShopItemCar
   return (
     <div className="bg-white rounded-2xl p-4 shadow-sm flex flex-col">
       {/* Icon area */}
-      <div className="w-full aspect-square bg-brand-50 rounded-xl mb-3 flex items-center justify-center text-5xl">
-        {slotIcon}
+      <div className="w-full aspect-square bg-brand-50 rounded-xl mb-3 flex items-center justify-center text-5xl overflow-hidden">
+        {renderShopItemSvg(item.id, 96, 96) ?? slotIcon}
       </div>
 
       <p className="font-black text-foreground text-sm leading-tight">{item.name}</p>
