@@ -11,6 +11,7 @@ interface WordResult {
   wordId: string;
   word: string;
   userAnswer?: string;
+  firstAttempt?: string;
   wasCorrect: boolean;
   timeTakenMs: number;
   coinsEarned?: number;
@@ -237,15 +238,25 @@ export default function ResultsScreen({
                     </div>
                     {!result.wasCorrect && (
                       <div className="mt-0.5 space-y-0.5">
+                        {result.firstAttempt && (
+                          <p className="text-xs text-danger font-semibold">
+                            1st try: <span className="line-through">{result.firstAttempt}</span>
+                          </p>
+                        )}
                         {result.userAnswer && (
                           <p className="text-xs text-danger font-semibold">
-                            You typed: <span className="line-through">{result.userAnswer}</span>
+                            {result.firstAttempt ? "2nd try" : "You typed"}: <span className="line-through">{result.userAnswer}</span>
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground font-semibold">
                           Correct: {result.word}
                         </p>
                       </div>
+                    )}
+                    {result.wasCorrect && result.firstAttempt && (
+                      <p className="text-xs text-green-600 font-semibold mt-0.5">
+                        1st try: <span className="line-through">{result.firstAttempt}</span> → got it on 2nd try!
+                      </p>
                     )}
                   </div>
                   {result.wasCorrect && result.coinsEarned != null && (

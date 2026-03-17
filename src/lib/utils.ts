@@ -22,6 +22,34 @@ export function checkSpelling(attempt: string, correct: string): boolean {
   return trimmed.toLowerCase() === correct.trim().toLowerCase();
 }
 
+/**
+ * Calculate how similar two strings are as a ratio (0–1).
+ * Uses character-level comparison: counts matching characters in order
+ * relative to the longer string's length.
+ */
+export function spellingSimilarity(attempt: string, correct: string): number {
+  const a = attempt.trim().toLowerCase();
+  const b = correct.trim().toLowerCase();
+  if (a.length === 0 || b.length === 0) return 0;
+  const maxLen = Math.max(a.length, b.length);
+  // Levenshtein distance
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const curr = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(
+        curr[j - 1]! + 1,
+        prev[j]! + 1,
+        prev[j - 1]! + cost,
+      );
+    }
+    prev.splice(0, prev.length, ...curr);
+  }
+  const distance = prev[b.length]!;
+  return 1 - distance / maxLen;
+}
+
 /** Coins earned for a session based on correct word count (legacy fallback). */
 export function calculateCoinsEarned(correctCount: number): number {
   return correctCount * COINS_PER_CORRECT_WORD;

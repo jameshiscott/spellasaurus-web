@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { checkSpelling } from "@/lib/utils";
+import { checkSpelling, spellingSimilarity } from "@/lib/utils";
 
 interface Word {
   id: string;
@@ -26,11 +26,12 @@ interface WordResult {
   wordId: string;
   word: string;
   userAnswer: string;
+  firstAttempt?: string;
   wasCorrect: boolean;
   timeTakenMs: number;
 }
 
-type SessionPhase = "intro" | "playing" | "feedback" | "submitting" | "done";
+type SessionPhase = "intro" | "playing" | "close" | "feedback" | "submitting" | "done";
 
 interface PracticeSessionProps {
   setId: string;
@@ -150,6 +151,7 @@ export default function PracticeSession({
   const [lastResult, setLastResult] = useState<boolean | null>(null);
   const [submitError, setSubmitError] = useState(false);
   const [wordStreak, setWordStreak] = useState(initialWordStreak);
+  const [firstAttempt, setFirstAttempt] = useState<string | null>(null);
 
   const sessionStartTimeRef = useRef<number>(0);
   const wordStartTimeRef = useRef<number>(0);
@@ -213,15 +215,26 @@ export default function PracticeSession({
   }
 
   function handleSubmit() {
-    if (!currentWord || phase !== "playing") return;
+    if (!currentWord || (phase !== "playing" && phase !== "close")) return;
 
     const timeTakenMs = Date.now() - wordStartTimeRef.current;
     const wasCorrect = checkSpelling(answer, currentWord.word);
+
+    // If wrong but close (≥70% similar) and this is the first attempt, let them retry
+    if (!wasCorrect && phase === "playing") {
+      const similarity = spellingSimilarity(answer, currentWord.word);
+      if (similarity >= 0.7 && answer.trim().length > 0) {
+        setFirstAttempt(answer.trim());
+        setPhase("close");
+        return;
+      }
+    }
 
     const result: WordResult = {
       wordId: currentWord.id,
       word: currentWord.word,
       userAnswer: answer.trim(),
+      firstAttempt: firstAttempt ?? undefined,
       wasCorrect,
       timeTakenMs,
     };
@@ -229,15 +242,16 @@ export default function PracticeSession({
     setWordResults((prev) => [...prev, result]);
     setLastResult(wasCorrect);
     setWordStreak((prev) => (wasCorrect ? prev + 1 : 0));
+    setFirstAttempt(null);
     setPhase("feedback");
 
-    if (wasCorrect) {
-      // Auto-advance after short delay for correct answers
+    if (wasCorrect && !firstAttempt) {
+      // Auto-advance after short delay only for first-time correct answers
       feedbackTimerRef.current = setTimeout(() => {
         advanceToNext();
       }, 1500);
     }
-    // Wrong answers wait for "Okay" button press
+    // Wrong answers and second-attempt correct wait for button press
   }
 
   function advanceToNext() {
@@ -246,6 +260,7 @@ export default function PracticeSession({
       setCurrentIndex(nextIndex);
       setAnswer("");
       setLastResult(null);
+      setFirstAttempt(null);
       setPhase("playing");
     } else {
       setPhase("submitting");
@@ -253,7 +268,7 @@ export default function PracticeSession({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") handleSubmit();
+    if (e.key === "Enter" && (phase === "playing" || phase === "close")) handleSubmit();
   }
 
   function replayAudio() {
@@ -433,6 +448,14 @@ export default function PracticeSession({
               </div>
             )}
 
+            {/* Close-answer banner */}
+            {phase === "close" && (
+              <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl px-4 py-3 mb-4 text-center">
+                <p className="text-orange-600 font-black text-lg">Ohhh very close!</p>
+                <p className="text-orange-500 font-semibold text-sm">Have another go!</p>
+              </div>
+            )}
+
             {/* Hint */}
             {currentWord?.hint && (
               <p className="text-xs text-center text-muted-foreground font-semibold mb-4">
@@ -533,11 +556,46 @@ export default function PracticeSession({
               >
                 <span className="text-7xl mb-3">{lastResult ? "✅" : "❌"}</span>
                 {lastResult ? (
-                  <p className="text-white font-black text-2xl text-center">
-                    Correct! Well done!
-                  </p>
+                  wordResults[wordResults.length - 1]?.firstAttempt ? (
+                    <div className="text-center px-6">
+                      <p className="text-white font-black text-2xl mb-3">
+                        Got it on the second try!
+                      </p>
+                      <p className="text-white/70 font-bold text-base mb-1">1st try:</p>
+                      <p className="text-white/80 font-black text-3xl mb-3 line-through decoration-2">
+                        {wordResults[wordResults.length - 1]?.firstAttempt}
+                      </p>
+                      <p className="text-white/70 font-bold text-base mb-1">2nd try:</p>
+                      <p className="text-white font-black text-3xl mb-6">
+                        {wordResults[wordResults.length - 1]?.userAnswer}
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+                          advanceToNext();
+                        }}
+                        className="bg-white text-green-700 font-black text-lg px-8 py-3 rounded-2xl active:scale-95 transition-transform shadow-md"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center px-6">
+                      <p className="text-white font-black text-2xl">
+                        Correct! Well done!
+                      </p>
+                    </div>
+                  )
                 ) : (
                   <div className="text-center px-6">
+                    {wordResults[wordResults.length - 1]?.firstAttempt && (
+                      <>
+                        <p className="text-white/80 font-bold text-sm mb-1">First try:</p>
+                        <p className="text-white font-black text-xl mb-2 line-through decoration-2">
+                          {wordResults[wordResults.length - 1]?.firstAttempt}
+                        </p>
+                      </>
+                    )}
                     <p className="text-white/80 font-bold text-base mb-1">You typed:</p>
                     <p className="text-white font-black text-2xl mb-4 line-through decoration-2">
                       {wordResults[wordResults.length - 1]?.userAnswer || answer}
