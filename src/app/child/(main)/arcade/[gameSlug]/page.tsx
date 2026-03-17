@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { TABLES, ARCADE_STARTING_LIVES } from '@/lib/constants';
 import GamePlayer from '@/components/child/GamePlayer';
+import EmojiInvadersPlayer from '@/components/child/EmojiInvadersPlayer';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,29 @@ export default async function ArcadeGamePage({ params }: GamePageProps) {
       lives_remaining: ARCADE_STARTING_LIVES,
     });
     lives = ARCADE_STARTING_LIVES;
+  }
+
+  // Emoji Invaders has upgrades — use the dedicated player component
+  if (game.slug === 'emoji-invaders') {
+    // Fetch owned upgrades
+    // eslint-disable-next-line
+    const { data: upgradeRows } = await (serviceClient as any)
+      .from(TABLES.ARCADE_UPGRADES)
+      .select('upgrade_id')
+      .eq('child_id', user.id)
+      .eq('game_id', game.id);
+
+    const ownedUpgrades = (upgradeRows ?? []).map(
+      (r: { upgrade_id: string }) => r.upgrade_id
+    );
+
+    return (
+      <EmojiInvadersPlayer
+        gameId={game.id}
+        initialLives={lives}
+        initialUpgrades={ownedUpgrades}
+      />
+    );
   }
 
   return (

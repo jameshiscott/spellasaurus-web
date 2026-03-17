@@ -1,8 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { TABLES } from '@/lib/constants';
 import Link from 'next/link';
-import ArcadeLobby from '@/components/child/ArcadeLobby';
-import ArcadeLeaderboard from '@/components/child/ArcadeLeaderboard';
+import ArcadeTabs from '@/components/child/ArcadeTabs';
 import { CoinDisplay } from '@/components/child/CoinDisplay';
 
 export const dynamic = 'force-dynamic';
@@ -40,7 +39,10 @@ export default async function ArcadePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black text-foreground">Arcade</h1>
-        <Link href="/child" className="text-sm font-bold text-brand-500 hover:underline">
+        <Link
+          href="/child"
+          className="inline-flex items-center gap-1 rounded-xl bg-gray-100 px-3 py-2 text-sm font-bold text-foreground hover:bg-gray-200 transition-colors"
+        >
           ← Back
         </Link>
       </div>
@@ -53,12 +55,7 @@ export default async function ArcadePage() {
         </div>
       </div>
 
-      <ArcadeLobby games={gamesWithStatus} />
-
-      {/* Leaderboards for each game */}
-      {(games ?? []).map((game) => (
-        <ArcadeLeaderboard key={game.id} gameId={game.id} gameName={game.name} />
-      ))}
+      <ArcadeTabs games={gamesWithStatus} />
     </div>
   );
 }

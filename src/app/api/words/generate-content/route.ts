@@ -127,11 +127,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       messages: [
         {
           role: 'system',
-          content: 'You are a children\'s spelling assistant. Return JSON only.',
+          content: 'You are a children\'s spelling assistant for a UK primary school. Always use British English spelling (e.g. colour, favourite, organise, travelled). Return JSON only.',
         },
         {
           role: 'user',
-          content: `For the word "${word}": 1) Write a child-friendly definition (max 20 words). Do NOT use the word "${word}" in the definition. 2) Write a simple example sentence for a primary school child using "${word}". 3) Provide the same sentence with "${word}" replaced by "___". Return JSON: { "definition": "...", "sentence": "...", "sentenceWithBlank": "..." }`,
+          content: `For the word "${word}": 1) Write a child-friendly definition (max 20 words) using British English spelling. Do NOT use the word "${word}" in the definition. 2) Write a simple example sentence for a UK primary school child using "${word}". Use British English spelling throughout. 3) Provide the same sentence with "${word}" replaced by "___". Return JSON: { "definition": "...", "sentence": "...", "sentenceWithBlank": "..." }`,
         },
       ],
       response_format: { type: 'json_object' },
@@ -143,32 +143,39 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       sentenceWithBlank?: string;
     };
 
-    // Generate TTS audio for the word (retry with different voices if silent)
-    const VOICES: Array<'alloy' | 'echo' | 'nova'> = ['alloy', 'echo', 'nova'];
+    // Generate TTS audio for the word (retry if silent)
+    // Using gpt-4o-mini-tts with a British English voice
+    const TTS_MODEL = 'gpt-4o-mini-tts' as const;
+    const TTS_VOICE = 'coral' as const;
+    const TTS_SPEED = 1.0;
+    const TTS_INSTRUCTIONS = 'Speak with a clear, friendly British English accent. Pronounce the word clearly for a child learning to spell.';
     const MAX_TTS_ATTEMPTS = 3;
     let audioBuffer: Buffer | null = null;
 
     for (let attempt = 0; attempt < MAX_TTS_ATTEMPTS; attempt++) {
-      const voice = VOICES[attempt % VOICES.length];
       const mp3 = await openai.audio.speech.create({
-        model: 'tts-1',
-        voice,
+        model: TTS_MODEL,
+        voice: TTS_VOICE,
         input: word,
+        speed: TTS_SPEED,
+        instructions: TTS_INSTRUCTIONS,
       });
       const buf = Buffer.from(await mp3.arrayBuffer());
       if (hasAudioContent(buf)) {
         audioBuffer = buf;
         break;
       }
-      console.warn(`TTS attempt ${attempt + 1} (voice=${voice}) likely silent for "${word}" (${buf.length} bytes)`);
+      console.warn(`TTS attempt ${attempt + 1} likely silent for "${word}" (${buf.length} bytes)`);
     }
 
     if (!audioBuffer) {
       // Last resort: add context to force speech
       const mp3 = await openai.audio.speech.create({
-        model: 'tts-1',
-        voice: 'nova',
+        model: TTS_MODEL,
+        voice: TTS_VOICE,
         input: `The word is: ${word}.`,
+        speed: TTS_SPEED,
+        instructions: TTS_INSTRUCTIONS,
       });
       audioBuffer = Buffer.from(await mp3.arrayBuffer());
     }

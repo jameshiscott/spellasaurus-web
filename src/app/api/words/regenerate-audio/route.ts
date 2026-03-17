@@ -10,12 +10,11 @@ const Schema = z.object({
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Voices to cycle through on retry — sometimes a different voice avoids the silent bug
-const VOICES: Array<'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'> = [
-  'alloy',
-  'echo',
-  'nova',
-];
+// TTS config — gpt-4o-mini-tts with British English accent
+const TTS_MODEL = 'gpt-4o-mini-tts' as const;
+const TTS_VOICE = 'coral' as const;
+const TTS_SPEED = 1.0;
+const TTS_INSTRUCTIONS = 'Speak with a clear, friendly British English accent. Pronounce the word clearly for a child learning to spell.';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -57,33 +56,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let audioBuffer: Buffer | null = null;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      const voice = VOICES[attempt % VOICES.length];
       const mp3 = await openai.audio.speech.create({
-        model: 'tts-1',
-        voice,
-        input: `${word}`,
+        model: TTS_MODEL,
+        voice: TTS_VOICE,
+        input: word,
+        speed: TTS_SPEED,
+        instructions: TTS_INSTRUCTIONS,
       });
 
       const buf = Buffer.from(await mp3.arrayBuffer());
 
-      // Quick silence heuristic: check if audio data bytes have variance
-      // Silent MP3 frames tend to have very low entropy in the audio portion
       if (hasAudioContent(buf)) {
         audioBuffer = buf;
         break;
       }
 
       console.warn(
-        `TTS regenerate attempt ${attempt + 1} (voice=${voice}) likely silent for "${word}" (${buf.length} bytes)`
+        `TTS regenerate attempt ${attempt + 1} likely silent for "${word}" (${buf.length} bytes)`
       );
     }
 
     if (!audioBuffer) {
       // Last resort: try with more context to force speech output
       const mp3 = await openai.audio.speech.create({
-        model: 'tts-1',
-        voice: 'nova',
+        model: TTS_MODEL,
+        voice: TTS_VOICE,
         input: `The word is: ${word}.`,
+        speed: TTS_SPEED,
+        instructions: TTS_INSTRUCTIONS,
       });
       audioBuffer = Buffer.from(await mp3.arrayBuffer());
     }

@@ -13,7 +13,7 @@ Gamified spelling-practice web app for primary-school children, managed by teach
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth |
 | Storage | Supabase Storage |
-| AI | OpenAI GPT-4o (text) + OpenAI TTS (`tts-1`) |
+| AI | OpenAI GPT-4o (text) + OpenAI TTS (`gpt-4o-mini-tts`, British English) |
 | Hosting | Vercel |
 | Animations | Framer Motion |
 | Fonts | Google Fonts — Nunito throughout |
@@ -86,6 +86,37 @@ spellasaurus-web/
 | Integrator | `agents/integrator/` | Supabase + Vercel setup, env config, migrations, CI/CD pipeline |
 | Tester | `agents/tester/` | Unit tests, E2E tests, local Supabase setup |
 | Arcade | `agents/arcade/` | JS game integration, arcade lobby, game unlocks |
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `node scripts/give-coins.mjs <user> <amount>` | Give (or remove) coins from a user |
+| `node scripts/check.mjs [--out]` | Run type-check + lint + unit tests, output health report |
+
+### Give Coins
+
+```bash
+# By child username (appends @spellasaurus.internal automatically)
+node scripts/give-coins.mjs CoolDino 500
+
+# By full email
+node scripts/give-coins.mjs parent@test.com 500
+
+# Remove coins (negative amount)
+node scripts/give-coins.mjs CoolDino -100
+```
+
+Connects to local Supabase by default. Set `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` env vars to target dev/prod.
+
+### Health Check
+
+```bash
+node scripts/check.mjs          # print to stdout
+node scripts/check.mjs --out    # also write test-report.md
+```
+
+Runs TypeScript type-check, ESLint, and Vitest unit tests. Categorises failures as Frontend or Backend issues.
 
 ## Working Conventions
 
