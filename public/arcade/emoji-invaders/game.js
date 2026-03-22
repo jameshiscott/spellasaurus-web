@@ -30,8 +30,8 @@
   var LASER_DURATION = 300;
 
   // Gun heat system
-  var GUN_MAX_HEAT = 4000;      // 4 seconds of continuous fire
-  var GUN_COOLDOWN_RATE = 4;    // cools 4x faster than it heats (1s full cooldown)
+  var GUN_MAX_HEAT = 2000;      // 2 seconds of continuous fire
+  var GUN_COOLDOWN_RATE = 1.6;  // cools 1.6x faster than it heats
 
   var ENEMY_EMOJIS_BY_ROW = ["👾", "👽", "🤖", "👻", "💀"];
   var ENEMY_HP_BY_ROW = [1, 1, 1, 2, 2];
@@ -484,12 +484,15 @@
   });
 
   // ── Firing ───────────────────────────────────────────────────────────
-  function fireBullets(fromX, fromY) {
+  function canFire() {
     var now = Date.now();
-    if (now - lastFireTime < FIRE_COOLDOWN) return;
-    if (gunOverheated) return;
-    lastFireTime = now;
+    if (gunOverheated) return false;
+    if (now - lastFireTime < FIRE_COOLDOWN) return false;
+    return true;
+  }
+  function markFired() { lastFireTime = Date.now(); }
 
+  function fireBullets(fromX, fromY) {
     var bw = 6, bh = 12;
     if (gunLevel === 1) {
       bullets.push({ x: fromX, y: fromY - 15 * scale, vx: 0, vy: -BULLET_SPEED * scale, w: bw, h: bh, damage: 1 });
@@ -583,7 +586,8 @@
 
     // ── Firing (keyboard: space/up, touch: fire button) ─────────────
     var shooting = keys[" "] || keys["ArrowUp"] || touchFire;
-    if (shooting && !gunOverheated) {
+    if (shooting && canFire()) {
+      markFired();
       fireBullets(player.x, player.y);
       if (hasGhostShip || hasGhostShip2) {
         fireBullets(player.x - 40 * scale, player.y + 10 * scale);

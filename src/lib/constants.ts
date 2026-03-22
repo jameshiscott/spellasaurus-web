@@ -74,11 +74,14 @@ export const DINO_COLORS = ["green", "blue", "purple", "orange", "pink"] as cons
 /** Coins awarded per correct word in a practice session. */
 export const COINS_PER_CORRECT_WORD = 1;
 
-/** Bonus coins when answer is faster than the child's average speed. */
-export const COINS_FASTER_THAN_AVG = 2;
+/** Coins awarded when correct on a retry (second attempt). */
+export const COINS_RETRY_CORRECT = 0.5;
 
-/** Bonus coins when session total time is the child's fastest ever for the set. */
-export const COINS_FASTEST_EVER = 5;
+/** Bonus coins when answer is faster than the child's average speed. */
+export const COINS_FASTER_THAN_AVG = 0.5;
+
+/** Bonus coins when session total time is the child's fastest ever for the set (not awarded on first attempt). */
+export const COINS_FASTEST_EVER = 3;
 
 /** Bonus coins for getting 100% correct in a session. */
 export const COINS_PERFECT_BONUS = 2;

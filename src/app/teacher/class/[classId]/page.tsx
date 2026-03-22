@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TABLES } from "@/lib/constants";
 import { EnrolStudentButton } from "@/components/teacher/EnrolStudentButton";
+import { EditableClassName } from "@/components/teacher/EditableClassName";
 
 interface ClassPageProps {
   params: Promise<{ classId: string }>;
@@ -19,9 +20,13 @@ interface StudentStats {
   user_id: string;
   full_name: string | null;
   display_name: string | null;
+  username: string | null;
   spellingsThisWeek: number;
+  accuracyThisWeek: number | null;
   spellingsThisMonth: number;
+  accuracyThisMonth: number | null;
   spellingsThisYear: number;
+  accuracyThisYear: number | null;
   lastPractised: string | null;
   coinBalance: number;
   totalCoinsEver: number;
@@ -109,6 +114,7 @@ export default async function ClassPage({ params }: ClassPageProps) {
       users:child_id (
         full_name,
         display_name,
+        email,
         coin_balance
       )
     `
@@ -123,13 +129,14 @@ export default async function ClassPage({ params }: ClassPageProps) {
   let allSessions: {
     child_id: string;
     total_words: number;
+    correct_count: number;
     completed_at: string;
     coins_awarded: number;
   }[] = [];
   if (childIds.length > 0) {
     const { data: sessions } = await serviceClient
       .from(TABLES.PRACTICE_SESSIONS)
-      .select("child_id, total_words, completed_at, coins_awarded")
+      .select("child_id, total_words, correct_count, completed_at, coins_awarded")
       .in("child_id", childIds);
     allSessions = (sessions ?? []) as typeof allSessions;
   }
@@ -150,40 +157,73 @@ export default async function ClassPage({ params }: ClassPageProps) {
   const monthStart = getStartOfMonth().toISOString();
   const yearStart = getStartOfYear().toISOString();
 
+  function computeAccuracy(
+    filteredSessions: typeof allSessions
+  ): number | null {
+    const totalWords = filteredSessions.reduce(
+      (sum, s) => sum + s.total_words,
+      0
+    );
+    if (totalWords === 0) return null;
+    const totalCorrect = filteredSessions.reduce(
+      (sum, s) => sum + s.correct_count,
+      0
+    );
+    return Math.round((totalCorrect / totalWords) * 100);
+  }
+
   const students: StudentStats[] = (classStudents ?? []).map((cs) => {
     const childId = cs.child_id as string;
     const u = cs.users as {
       full_name: string | null;
       display_name: string | null;
+      email: string | null;
       coin_balance: number;
     } | null;
 
     const sessions = allSessions.filter((s) => s.child_id === childId);
 
-    const spellingsThisWeek = sessions
-      .filter((s) => s.completed_at >= weekStart)
-      .reduce((sum, s) => sum + s.total_words, 0);
+    const weekSessions = sessions.filter((s) => s.completed_at >= weekStart);
+    const monthSessions = sessions.filter(
+      (s) => s.completed_at >= monthStart
+    );
+    const yearSessions = sessions.filter((s) => s.completed_at >= yearStart);
 
-    const spellingsThisMonth = sessions
-      .filter((s) => s.completed_at >= monthStart)
-      .reduce((sum, s) => sum + s.total_words, 0);
-
-    const spellingsThisYear = sessions
-      .filter((s) => s.completed_at >= yearStart)
-      .reduce((sum, s) => sum + s.total_words, 0);
+    const spellingsThisWeek = weekSessions.reduce(
+      (sum, s) => sum + s.total_words,
+      0
+    );
+    const spellingsThisMonth = monthSessions.reduce(
+      (sum, s) => sum + s.total_words,
+      0
+    );
+    const spellingsThisYear = yearSessions.reduce(
+      (sum, s) => sum + s.total_words,
+      0
+    );
 
     const totalCoinsEver = sessions.reduce(
       (sum, s) => sum + s.coins_awarded,
       0
     );
 
+    // Extract username from email (strip @spellasaurus.internal)
+    let username: string | null = null;
+    if (u?.email) {
+      username = u.email.replace(/@spellasaurus\.internal$/, "");
+    }
+
     return {
       user_id: childId,
       full_name: u?.full_name ?? null,
       display_name: u?.display_name ?? null,
+      username,
       spellingsThisWeek,
+      accuracyThisWeek: computeAccuracy(weekSessions),
       spellingsThisMonth,
+      accuracyThisMonth: computeAccuracy(monthSessions),
       spellingsThisYear,
+      accuracyThisYear: computeAccuracy(yearSessions),
       lastPractised: childStatsMap[childId] ?? null,
       coinBalance: u?.coin_balance ?? 0,
       totalCoinsEver,
@@ -208,9 +248,7 @@ export default async function ClassPage({ params }: ClassPageProps) {
       <div className="bg-white rounded-2xl p-6 shadow-sm">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-black text-foreground">
-              {classData.name}
-            </h1>
+            <EditableClassName classId={classData.id} initialName={classData.name} />
             {classData.school_id && (
               <p className="text-sm text-muted-foreground mt-1">
                 School ID: {classData.school_id}
@@ -328,15 +366,35 @@ export default async function ClassPage({ params }: ClassPageProps) {
                               {student.display_name}
                             </p>
                           )}
+                          {student.username && (
+                            <p className="text-xs text-muted-foreground/70">
+                              @{student.username}
+                            </p>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right text-muted-foreground">
                           {student.spellingsThisWeek}
+                          {student.accuracyThisWeek !== null && (
+                            <span className="text-xs ml-1 text-muted-foreground/70">
+                              ({student.accuracyThisWeek}%)
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right text-muted-foreground">
                           {student.spellingsThisMonth}
+                          {student.accuracyThisMonth !== null && (
+                            <span className="text-xs ml-1 text-muted-foreground/70">
+                              ({student.accuracyThisMonth}%)
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right text-muted-foreground">
                           {student.spellingsThisYear}
+                          {student.accuracyThisYear !== null && (
+                            <span className="text-xs ml-1 text-muted-foreground/70">
+                              ({student.accuracyThisYear}%)
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                           {lastPractisedDisplay}

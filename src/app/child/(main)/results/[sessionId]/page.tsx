@@ -5,6 +5,7 @@ import ResultsScreen from "@/components/child/ResultsScreen";
 
 interface PageProps {
   params: Promise<{ sessionId: string }>;
+  searchParams: Promise<{ quip?: string }>;
 }
 
 interface WordResult {
@@ -30,8 +31,9 @@ function isWordResultArray(value: unknown): value is WordResult[] {
   );
 }
 
-export default async function ResultsPage({ params }: PageProps) {
+export default async function ResultsPage({ params, searchParams }: PageProps) {
   const { sessionId } = await params;
+  const { quip: roundingQuip } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -99,6 +101,7 @@ export default async function ResultsPage({ params }: PageProps) {
       currentWordStreak={childStats?.current_word_streak ?? 0}
       bestWordStreak={childStats?.best_word_streak ?? 0}
       isFastestEverSet={isFastestEverSet}
+      roundingQuip={roundingQuip ?? null}
     />
   );
 }

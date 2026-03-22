@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { COINS_PER_CORRECT_WORD, COINS_FASTER_THAN_AVG } from "./constants";
+import { COINS_PER_CORRECT_WORD, COINS_RETRY_CORRECT, COINS_FASTER_THAN_AVG } from "./constants";
 
 export interface WordCoinBreakdown {
   wordId: string;
@@ -57,12 +57,12 @@ export function calculateCoinsEarned(correctCount: number): number {
 
 /**
  * Calculate per-word coin breakdown with speed bonuses.
- * - 1 coin per correct word
- * - 2 bonus coins if faster than child's average speed
+ * - 1 coin per correct word (0.5 if correct on retry)
+ * - 0.5 bonus coins if faster than child's average speed
  * (Fastest-ever bonus is awarded at the set/session level, not per word.)
  */
 export function calculateWordCoins(
-  wordResults: Array<{ wordId: string; wasCorrect: boolean; timeTakenMs: number }>,
+  wordResults: Array<{ wordId: string; wasCorrect: boolean; timeTakenMs: number; wasRetry?: boolean }>,
   avgTimeMs: number,
 ): { breakdown: WordCoinBreakdown[]; totalCoins: number } {
   const breakdown: WordCoinBreakdown[] = wordResults.map((wr) => {
@@ -76,7 +76,7 @@ export function calculateWordCoins(
       };
     }
 
-    const correct = COINS_PER_CORRECT_WORD;
+    const correct = wr.wasRetry ? COINS_RETRY_CORRECT : COINS_PER_CORRECT_WORD;
     const isFasterThanAvg = avgTimeMs > 0 && wr.timeTakenMs < avgTimeMs;
     const speedBonus = isFasterThanAvg ? COINS_FASTER_THAN_AVG : 0;
 

@@ -32,6 +32,7 @@ interface ResultsScreenProps {
   currentWordStreak?: number;
   bestWordStreak?: number;
   isFastestEverSet?: boolean;
+  roundingQuip?: string | null;
 }
 
 function StarRating({ stars }: { stars: 1 | 2 | 3 }) {
@@ -86,6 +87,7 @@ export default function ResultsScreen({
   currentWordStreak = 0,
   bestWordStreak = 0,
   isFastestEverSet = false,
+  roundingQuip = null,
 }: ResultsScreenProps) {
   const { coinBalance, refreshBalance } = useCoinBalance();
 
@@ -146,6 +148,12 @@ export default function ResultsScreen({
               </p>
             </div>
           </div>
+          {/* Rounding quip */}
+          {roundingQuip && (
+            <p className="text-xs text-yellow-600 font-semibold italic mt-2">
+              {roundingQuip}
+            </p>
+          )}
           {/* Flying coins animation */}
           {coins_awarded > 0 && (
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -232,7 +240,7 @@ export default function ResultsScreen({
                       </span>
                       {result.wasCorrect && result.isFasterThanAvg && (
                         <span className="inline-flex items-center gap-0.5 text-xs font-bold text-blue-700 bg-blue-100 rounded-full px-2 py-0.5">
-                          ⚡ Faster than normal +2
+                          ⚡ Faster than normal +0.5
                         </span>
                       )}
                     </div>

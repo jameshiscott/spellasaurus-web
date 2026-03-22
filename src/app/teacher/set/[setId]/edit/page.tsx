@@ -5,6 +5,7 @@ import { TABLES } from "@/lib/constants";
 import AddWordForm from "@/components/teacher/AddWordForm";
 import WordCard from "@/components/teacher/WordCard";
 import { ManageSetClasses } from "@/components/teacher/ManageSetClasses";
+import { EditableSetHeader } from "@/components/teacher/EditableSetHeader";
 
 interface EditSetPageProps {
   params: Promise<{ setId: string }>;
@@ -112,29 +113,15 @@ export default async function EditSetPage({ params }: EditSetPageProps) {
         </span>
       </nav>
 
-      {/* Set header card */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm">
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-black text-foreground">{spellingSet.name}</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {spellingSet.week_number != null
-                ? `Week ${spellingSet.week_number}`
-                : spellingSet.week_start}{" "}
-              · {words.length} {words.length === 1 ? "word" : "words"}
-              {" · "}
-              <span className={spellingSet.is_active ? "text-green-600" : "text-orange-600"}>
-                {spellingSet.is_active ? "Active" : "Inactive"}
-              </span>
-            </p>
-          </div>
-          {spellingSet.week_number != null && (
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-brand-500 text-white">
-              Week {spellingSet.week_number}
-            </span>
-          )}
-        </div>
-      </div>
+      {/* Set header card (editable) */}
+      <EditableSetHeader
+        setId={spellingSet.id}
+        initialName={spellingSet.name}
+        initialWeekStart={spellingSet.week_start}
+        weekNumber={spellingSet.week_number}
+        wordCount={words.length}
+        isActive={spellingSet.is_active}
+      />
 
       {/* Class assignment section */}
       <ManageSetClasses

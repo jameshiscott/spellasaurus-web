@@ -28,6 +28,7 @@ interface WordResult {
   userAnswer: string;
   firstAttempt?: string;
   wasCorrect: boolean;
+  wasRetry?: boolean;
   timeTakenMs: number;
 }
 
@@ -236,6 +237,7 @@ export default function PracticeSession({
       userAnswer: answer.trim(),
       firstAttempt: firstAttempt ?? undefined,
       wasCorrect,
+      wasRetry: firstAttempt != null,
       timeTakenMs,
     };
 
@@ -306,9 +308,10 @@ export default function PracticeSession({
           return;
         }
 
-        const data = (await res.json()) as { sessionId: string; coinsEarned: number; newBalance: number };
+        const data = (await res.json()) as { sessionId: string; coinsEarned: number; newBalance: number; roundingQuip: string | null };
         setPhase("done");
-        router.push(`/child/results/${data.sessionId}`);
+        const quipParam = data.roundingQuip ? `?quip=${encodeURIComponent(data.roundingQuip)}` : "";
+        router.push(`/child/results/${data.sessionId}${quipParam}`);
       } catch {
         setSubmitError(true);
         setPhase("submitting");

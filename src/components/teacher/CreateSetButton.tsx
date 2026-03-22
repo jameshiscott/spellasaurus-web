@@ -12,11 +12,20 @@ interface CreateSetButtonProps {
 }
 
 const CreateSetSchema = z.object({
-  name: z.string().min(2, "Set name must be at least 2 characters"),
+  year: z.string().min(1, "Year is required"),
+  term: z.string().min(1, "Term is required"),
+  week: z.string().min(1, "Week is required"),
+  level: z.string().optional(),
   weekStart: z.string().min(1, "Week start date is required"),
 });
 
 type CreateSetFormValues = z.infer<typeof CreateSetSchema>;
+
+function buildSetName(values: { year: string; term: string; week: string; level?: string }): string {
+  const parts = [values.year.trim(), values.term.trim(), values.week.trim()];
+  if (values.level?.trim()) parts.push(values.level.trim());
+  return parts.join(" - ");
+}
 
 export default function CreateSetButton({ onCreated }: CreateSetButtonProps) {
   const router = useRouter();
@@ -27,19 +36,33 @@ export default function CreateSetButton({ onCreated }: CreateSetButtonProps) {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CreateSetFormValues>({
     resolver: zodResolver(CreateSetSchema),
+    defaultValues: {
+      year: "Year ",
+      term: "Term ",
+      week: "Week ",
+      level: "",
+    },
   });
+
+  const watchedYear = watch("year");
+  const watchedTerm = watch("term");
+  const watchedWeek = watch("week");
+  const watchedLevel = watch("level");
+  const previewName = buildSetName({ year: watchedYear, term: watchedTerm, week: watchedWeek, level: watchedLevel });
 
   const onSubmit = async (values: CreateSetFormValues) => {
     setServerError(null);
     try {
+      const name = buildSetName(values);
       const res = await fetch("/api/teacher/create-set", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: values.name,
+          name,
           weekStart: values.weekStart,
         }),
       });
@@ -103,36 +126,79 @@ export default function CreateSetButton({ onCreated }: CreateSetButtonProps) {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Set name */}
+              {/* Segmented name fields */}
               <div>
-                <label
-                  htmlFor="set-name"
-                  className="block text-sm font-semibold text-foreground mb-1"
-                >
+                <p className="block text-sm font-semibold text-foreground mb-2">
                   List name
-                </label>
-                <input
-                  id="set-name"
-                  type="text"
-                  placeholder="e.g. Week 3 Words"
-                  {...register("name")}
-                  className={cn(
-                    "w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors",
-                    errors.name ? "border-danger" : "border-border"
-                  )}
-                />
-                {errors.name && (
-                  <p className="mt-1 text-xs text-danger">{errors.name.message}</p>
-                )}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label htmlFor="set-year" className="block text-xs font-medium text-muted-foreground mb-1">Year</label>
+                    <input
+                      id="set-year"
+                      type="text"
+                      placeholder="Year "
+                      {...register("year")}
+                      className={cn(
+                        "w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors",
+                        errors.year ? "border-danger" : "border-border"
+                      )}
+                    />
+                    {errors.year && <p className="mt-1 text-xs text-danger">{errors.year.message}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="set-term" className="block text-xs font-medium text-muted-foreground mb-1">Term</label>
+                    <input
+                      id="set-term"
+                      type="text"
+                      placeholder="Term "
+                      {...register("term")}
+                      className={cn(
+                        "w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors",
+                        errors.term ? "border-danger" : "border-border"
+                      )}
+                    />
+                    {errors.term && <p className="mt-1 text-xs text-danger">{errors.term.message}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="set-week" className="block text-xs font-medium text-muted-foreground mb-1">Week</label>
+                    <input
+                      id="set-week"
+                      type="text"
+                      placeholder="Week "
+                      {...register("week")}
+                      className={cn(
+                        "w-full px-3 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors",
+                        errors.week ? "border-danger" : "border-border"
+                      )}
+                    />
+                    {errors.week && <p className="mt-1 text-xs text-danger">{errors.week.message}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="set-level" className="block text-xs font-medium text-muted-foreground mb-1">Level <span className="text-muted-foreground">(optional)</span></label>
+                    <input
+                      id="set-level"
+                      type="text"
+                      placeholder="e.g. LA, MA, HA"
+                      {...register("level")}
+                      className="w-full px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors"
+                    />
+                  </div>
+                </div>
+                {/* Live preview */}
+                <div className="mt-2 rounded-xl bg-gray-50 border border-border px-3 py-2">
+                  <p className="text-xs text-muted-foreground mb-0.5">Preview:</p>
+                  <p className="text-sm font-bold text-foreground">{previewName || "—"}</p>
+                </div>
               </div>
 
-              {/* Week start date */}
+              {/* Active from date */}
               <div>
                 <label
                   htmlFor="week-start"
                   className="block text-sm font-semibold text-foreground mb-1"
                 >
-                  Week start date
+                  Active from
                 </label>
                 <input
                   id="week-start"

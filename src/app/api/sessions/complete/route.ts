@@ -9,6 +9,7 @@ const WordResultSchema = z.object({
   word: z.string(),
   userAnswer: z.string(),
   wasCorrect: z.boolean(),
+  wasRetry: z.boolean().optional(),
   timeTakenMs: z.number().int().min(0),
 });
 
@@ -144,13 +145,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .limit(1)
       .maybeSingle();
 
-    const isFastestEverSet = !fastestSession || timeTakenMs < fastestSession.time_taken_ms;
+    // Only award fastest-ever bonus if there IS a prior session (first attempt sets baseline)
+    const isFastestEverSet = fastestSession != null && timeTakenMs < fastestSession.time_taken_ms;
     const fastestBonus = isFastestEverSet ? COINS_FASTEST_EVER : 0;
 
     // Add perfect score bonus if 100%
     const isPerfect = correctCount === totalWords;
     const perfectBonus = isPerfect ? COINS_PERFECT_BONUS : 0;
-    const coinsEarned = wordCoins + perfectBonus + fastestBonus;
+    // Round up to nearest integer — DB columns are INTEGER
+    const rawCoins = wordCoins + perfectBonus + fastestBonus;
+    const coinsEarned = Math.ceil(rawCoins);
+    const wasRoundedUp = coinsEarned > rawCoins;
 
     // Build enriched word_results with coin breakdown
     const enrichedWordResults = wordResults.map((wr) => {
@@ -228,6 +233,79 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Pick a random rounding quip if we rounded up
+    let roundingQuip: string | null = null;
+    if (wasRoundedUp) {
+      const quips = [
+        "Bonus 0.5: just because.",
+        "Whole numbers are nicer.",
+        "Decimals are rubbish. Have the point.",
+        "A tiny boost for a job well done.",
+        "Your score just got a little glow-up.",
+        "Extra 0.5 unlocked!",
+        "A little bonus makes everything better.",
+        "Your score deserved a little sparkle.",
+        "Tiny bonus. Big energy.",
+        "A cheerful 0.5 for you!",
+        "Score upgrade complete.",
+        "That deserved a little extra.",
+        "Bonus points have entered the chat.",
+        "Have a bonus 0.5 on the house.",
+        "A little extra for extra effort.",
+        "Your score looked like it wanted a friend.",
+        "Half a point, full of joy.",
+        "This set earned a tiny celebration.",
+        "A bonus bump for being brilliant.",
+        "Your score has been officially improved.",
+        "Just adding a little extra shine.",
+        "Tiny bonus incoming!",
+        "A happy little 0.5 for you.",
+        "Whole numbers feel more complete.",
+        "Consider this a bonus sprinkle.",
+        "Your score has been gently upgraded.",
+        "Decimals are untidy. Fixed it.",
+        "A small boost for big spelling energy.",
+        "Your points have multiplied... a bit.",
+        "This score needed a little pizzazz.",
+        "Bonus mode: activated.",
+        "A tiny top-up for a terrific set.",
+        "Your score just got fancier.",
+        "Half a point of pure kindness.",
+        "Adding 0.5 for style.",
+        "This set deserves a bonus wiggle.",
+        "Your score has been polished.",
+        "A little extra never hurt anyone.",
+        "Bonus 0.5, courtesy of good vibes.",
+        "That score deserved a tiny upgrade.",
+        "Have some extra points for fun.",
+        "Just rounding life in a better direction.",
+        "Your score got a bonus bounce.",
+        "A neat little extra for you.",
+        "Points have been added for awesomeness.",
+        "This set earned a little fanfare.",
+        "Your score now comes with extra sparkle.",
+        "A tiny boost, because why not?",
+        "Half a point makes everything happier.",
+        "Bonus 0.5 awarded with great enthusiasm.",
+        "Bonus 0.5 awarded!",
+        "Tiny boost added!",
+        "Score upgrade: complete.",
+        "Extra points for extra fun.",
+        "A little bonus for this set!",
+        "Decimals are rubbish. Sorted.",
+        "Whole numbers win again.",
+        "Bonus sparkle applied.",
+        "Score boosted!",
+        "A cheerful extra 0.5!",
+        "Tiny bonus incoming!",
+        "Points added for excellence.",
+        "This set gets a little extra.",
+        "Half a point, coming right up.",
+        "Score improved. Everyone wins.",
+      ];
+      roundingQuip = quips[Math.floor(Math.random() * quips.length)];
+    }
+
     return NextResponse.json(
       {
         sessionId,
@@ -235,6 +313,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         perfectBonus,
         fastestBonus,
         isFastestEverSet,
+        roundingQuip,
         newBalance: result?.newBalance ?? null,
         currentDayStreak,
         bestDayStreak,
