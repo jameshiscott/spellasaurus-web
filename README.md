@@ -115,6 +115,21 @@ npm run db:diff      # Generate a new migration from schema changes
 npm run db:types     # Regenerate src/types/database.ts from local schema
 ```
 
+### Give / Remove Coins
+
+```bash
+# By child username (appends @spellasaurus.internal automatically)
+node scripts/give-coins.mjs CoolDino 500
+
+# By full email
+node scripts/give-coins.mjs parent@test.com 500
+
+# Remove coins (negative amount)
+node scripts/give-coins.mjs CoolDino -100
+```
+
+Connects to local Supabase by default. Set `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` env vars to target dev/prod.
+
 ---
 
 ## Database Migrations

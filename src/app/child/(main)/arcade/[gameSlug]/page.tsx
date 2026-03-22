@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { TABLES, ARCADE_STARTING_LIVES } from '@/lib/constants';
 import GamePlayer from '@/components/child/GamePlayer';
 import EmojiInvadersPlayer from '@/components/child/EmojiInvadersPlayer';
+import FortAlphabetPlayer from '@/components/child/FortAlphabetPlayer';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,8 +68,8 @@ export default async function ArcadeGamePage({ params }: GamePageProps) {
     lives = ARCADE_STARTING_LIVES;
   }
 
-  // Emoji Invaders has upgrades — use the dedicated player component
-  if (game.slug === 'emoji-invaders') {
+  // Games with upgrades — use dedicated player components
+  if (game.slug === 'emoji-invaders' || game.slug === 'fort-alphabet') {
     // Fetch owned upgrades
     // eslint-disable-next-line
     const { data: upgradeRows } = await (serviceClient as any)
@@ -80,6 +81,16 @@ export default async function ArcadeGamePage({ params }: GamePageProps) {
     const ownedUpgrades = (upgradeRows ?? []).map(
       (r: { upgrade_id: string }) => r.upgrade_id
     );
+
+    if (game.slug === 'fort-alphabet') {
+      return (
+        <FortAlphabetPlayer
+          gameId={game.id}
+          initialLives={lives}
+          initialUpgrades={ownedUpgrades}
+        />
+      );
+    }
 
     return (
       <EmojiInvadersPlayer

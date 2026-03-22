@@ -151,7 +151,7 @@ export default function ResultsScreen({
           {/* Rounding quip */}
           {roundingQuip && (
             <p className="text-xs text-yellow-600 font-semibold italic mt-2">
-              {roundingQuip}
+              +0.5: {roundingQuip}
             </p>
           )}
           {/* Flying coins animation */}

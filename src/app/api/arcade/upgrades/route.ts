@@ -3,9 +3,13 @@ import { z } from 'zod';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { TABLES, USER_ROLES, COIN_TRANSACTION_TYPES } from '@/lib/constants';
 import {
-  getUpgrade,
-  canPurchase,
+  getUpgrade as getEmojiUpgrade,
+  canPurchase as canPurchaseEmoji,
 } from '@/lib/emoji-invaders-upgrades';
+import {
+  getFortUpgrade,
+  canPurchaseFort,
+} from '@/lib/fort-alphabet-upgrades';
 
 const PurchaseSchema = z.object({
   gameId: z.string().uuid(),
@@ -62,12 +66,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { gameId, upgradeId } = parsed.data;
 
-    // Validate upgrade exists in catalog
-    const upgrade = getUpgrade(upgradeId);
-    if (!upgrade) {
-      return NextResponse.json({ error: 'Unknown upgrade' }, { status: 400 });
-    }
-
     const supabase = await createClient();
     const {
       data: { user },
@@ -93,6 +91,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const serviceClient = createServiceClient();
 
+    // Look up game slug to determine which upgrade catalog to use
+    const { data: game } = await serviceClient
+      .from(TABLES.ARCADE_GAMES)
+      .select('slug')
+      .eq('id', gameId)
+      .single();
+
+    if (!game) {
+      return NextResponse.json({ error: 'Unknown game' }, { status: 400 });
+    }
+
+    // Validate upgrade exists in the correct catalog
+    const upgrade = game.slug === 'fort-alphabet'
+      ? getFortUpgrade(upgradeId)
+      : getEmojiUpgrade(upgradeId);
+
+    if (!upgrade) {
+      return NextResponse.json({ error: 'Unknown upgrade' }, { status: 400 });
+    }
+
     // Fetch current owned upgrades
     // eslint-disable-next-line
     const { data: owned } = await (serviceClient as any)
@@ -105,8 +123,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       (owned ?? []).map((r: { upgrade_id: string }) => r.upgrade_id)
     );
 
-    // Check prerequisites
-    if (!canPurchase(upgradeId, ownedIds)) {
+    // Check prerequisites using the correct catalog
+    const canBuy = game.slug === 'fort-alphabet'
+      ? canPurchaseFort(upgradeId, ownedIds)
+      : canPurchaseEmoji(upgradeId, ownedIds);
+
+    if (!canBuy) {
       return NextResponse.json(
         { error: 'Cannot purchase — already owned or missing prerequisite' },
         { status: 400 }

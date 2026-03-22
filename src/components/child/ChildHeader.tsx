@@ -11,7 +11,11 @@ export function ChildHeader({ displayName }: ChildHeaderProps) {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await fetch("/api/auth/signout", { method: "POST" });
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+    } catch {
+      // Network error — still redirect to login
+    }
     router.push("/login");
   };
 

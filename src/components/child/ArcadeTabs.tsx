@@ -128,6 +128,10 @@ export default function ArcadeTabs({ games }: ArcadeTabsProps) {
             >
               🎮 Play Now
             </button>
+          ) : activeGame.slug === 'fort-alphabet' ? (
+            <div className="w-full rounded-2xl bg-gray-300 text-gray-600 font-bold py-3 text-sm text-center">
+              🏰 Coming Soon!
+            </div>
           ) : (
             <button
               onClick={() => handleUnlock(activeGame.id)}
@@ -140,7 +144,7 @@ export default function ArcadeTabs({ games }: ArcadeTabsProps) {
             </button>
           )}
 
-          {!isUnlocked && !canAfford && (
+          {!isUnlocked && !canAfford && activeGame.slug !== 'fort-alphabet' && (
             <p className="text-xs text-red-500 font-semibold text-center">
               You need {activeGame.price_coins - coinBalance} more coins
             </p>

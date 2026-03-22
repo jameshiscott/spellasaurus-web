@@ -116,7 +116,7 @@ export default function LoginPage() {
             htmlFor="identifier"
             className="block text-sm font-semibold text-foreground"
           >
-            Email or Username
+            Username (Students) or Email (Teachers and Parents)
           </label>
           <input
             id="identifier"

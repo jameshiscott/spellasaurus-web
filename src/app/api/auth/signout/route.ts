@@ -1,9 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  const origin = new URL(request.url).origin;
-  return NextResponse.redirect(`${origin}/login`, { status: 302 });
+export async function POST() {
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+  } catch (error) {
+    console.error("Sign out error:", error);
+  }
+  return NextResponse.json({ success: true });
 }

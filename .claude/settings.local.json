@@ -53,7 +53,9 @@
       "Bash(npm ls:*)",
       "Bash(find /c/Git/spellasaurus-web/node_modules/@supabase -type f \\\\\\(-name *.js -o -name *.mjs -o -name *.ts \\\\\\))",
       "Bash(find .next -name *middleware* -o -name *edge*)",
-      "Bash(find /c/Git/spellasaurus-web/src/app/parent -type f -name *.tsx -o -name *.ts)"
+      "Bash(find /c/Git/spellasaurus-web/src/app/parent -type f -name *.tsx -o -name *.ts)",
+      "Bash(grep -l \"arcade_upgrades\\\\|arcade_games\" /c/Git/spellasaurus-web/supabase/migrations/*.sql)",
+      "Bash(echo $SUPABASE_DEV_PROJECT_ID)"
     ]
   }
 }
